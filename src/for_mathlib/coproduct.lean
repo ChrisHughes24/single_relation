@@ -120,6 +120,8 @@ def of' (i : ι) : multiplicative ℤ →* free_group ι := coprod.of i
   @eq (free_group ι) ⟨g :: l, h⟩ (of' g.1 g.2 * ⟨l, sorry⟩) :=
 sorry
 
+lemma of'_eq_pow (i : ι) (n : C∞) : of' i n = (of i) ^ n.to_add := sorry
+
 @[simp] lemma append_eq_mul (l₁ l₂ : list (Σ i : ι, multiplicative ℤ)) (hl):
   @eq (free_group ι) ⟨l₁ ++ l₂, hl⟩ (⟨l₁, sorry⟩ * ⟨l₂, sorry⟩) := sorry
 
@@ -142,24 +144,33 @@ lift' (λ i, gpowers_hom _ (f i))
 @[simp] lemma lift'_of' [monoid M] (f : Π i : ι, multiplicative ℤ →* M) (i : ι) (n : multiplicative ℤ) :
   lift' f (of' i n) = f i n := by simp [lift', of']
 
+@[simp] lemma lift_of [group M] (f : Π i : ι, M) (i : ι) :
+  lift f (of i) = f i := by simp [lift, of_eq_of', gpowers_hom, ii,
+    multiplicative.to_add]
+
 @[simp] lemma lift'_comp_of' [monoid M] (f : Π i : ι, multiplicative ℤ →* M) (i : ι) :
   (lift' f).comp (of' i) = f i := by ext; simp
 
 @[elab_as_eliminator]
-def rec_on {C : free_group ι → Sort*} (g : free_group ι) (h1 : C 1)
+def rec_on' {C : free_group ι → Sort*} (g : free_group ι) (h1 : C 1)
   (f : Π (g : Σ i, multiplicative ℤ) (h : free_group ι), C h → C (of' g.1 g.2 * h)) : C g :=
 by exact coprod.rec_on g h1 f
 
-@[simp] lemma rec_on_one {C : free_group ι → Sort*} (h1 : C 1)
+@[simp] lemma rec_on'_one {C : free_group ι → Sort*} (h1 : C 1)
   (f : Π (g : Σ i : ι, multiplicative ℤ) (h : free_group ι), C h → C (of' g.1 g.2 * h)) :
-  (rec_on (1 : free_group ι) h1 f : C 1) = h1 := coprod.rec_on_one h1 f
+  (rec_on' (1 : free_group ι) h1 f : C 1) = h1 := coprod.rec_on_one h1 f
 
-lemma rec_on_mul {C : free_group ι → Sort*} {i j : ι} (hij : i ≠ j)
+lemma rec_on'_mul {C : free_group ι → Sort*} {i j : ι} (hij : i ≠ j)
   (g h : ℤ) (x : free_group ι) (hg0 : g ≠ 0) (hh0 : h ≠ 0) (h1 : C 1)
   (f : Π (g : Σ i : ι, multiplicative ℤ) (h : free_group ι), C h → C (of' g.1 g.2 * h)) :
-  (rec_on (of' i g * (of' j h * x)) h1 f : C (of' i g * (of' j h * x))) =
-  f ⟨i, g⟩ (of' j h * x) (rec_on (of' j h * x) h1 f) :=
+  (rec_on' (of' i g * (of' j h * x)) h1 f : C (of' i g * (of' j h * x))) =
+  f ⟨i, g⟩ (of' j h * x) (rec_on' (of' j h * x) h1 f) :=
 coprod.rec_on_mul hij g h x hg0 hh0 h1 f
+
+@[elab_as_eliminator]
+def rec_on {C : free_group ι → Sort*} (g : free_group ι) (h1 : C 1)
+  (f : Π (i : ι) (h : free_group ι), C h → C (of i * h)) : C g :=
+sorry
 
 protected constant embedding (e : α ↪ β) : free_group α →* free_group β
 
@@ -192,23 +203,6 @@ sorry
 def exp_sum (i : ι) : free_group ι →* multiplicative ℤ :=
 free_group.lift' (λ j, if i = j then monoid_hom.id _ else 1)
 
-def phi : multiplicative ℤ →* mul_aut (free_group (ι × multiplicative ℤ)) :=
-{ to_fun := λ n, free_group.equiv (equiv.prod_congr (equiv.refl _) (mul_left n)),
-  map_one' := mul_equiv_ext (by simp [of_eq_of']),
-  map_mul' := λ _ _, mul_equiv_ext (by simp [of_eq_of']) }
-
-def to_SD (i : ι) : free_group ι →* free_group (ι × multiplicative ℤ) ⋊[phi] multiplicative ℤ :=
-free_group.lift' (λ j,
-  if i = j
-  then semidirect_product.inr
-  else semidirect_product.inl.comp (of' (j, 1)))
-
-def of_SD (i : ι) : free_group (ι × multiplicative ℤ) ⋊[phi] multiplicative ℤ →* free_group ι :=
-semidirect_product.lift (free_group.lift'
-  (λ j, (mul_aut.conj (of' i j.2 : free_group ι) : free_group ι ≃* free_group ι).to_monoid_hom.comp (of' j.1)))
-  (of' i)
-  (λ g, hom_ext (λ j, by simp [phi, of_eq_of', mul_aut.conj_apply, mul_assoc, mul_left]))
-
 /-- `closure_var` is the group closure of a set of variables -/
 def closure_var (T : set ι) : subgroup (free_group ι) :=
 subgroup.closure (of '' T)
@@ -216,13 +210,6 @@ subgroup.closure (of '' T)
 instance (T : set ι) [decidable_pred T] (g : free_group ι) : decidable (g ∈ closure_var T) := sorry
 
 constant vars (w : free_group ι) : finset ι
-
-@[simp] lemma of_SD_comp_to_SD (i : ι) : (of_SD i).comp (to_SD i) = monoid_hom.id _ :=
-free_group.hom_ext (λ j, begin
-  simp [to_SD, of_SD, of_eq_of'],
-  split_ifs;
-  simp *
-end)
 
 end free_group
 

@@ -129,8 +129,7 @@ noncomputable def normalize_cons
       (normalize_cons ⟨old1.1 ++ [i], sorry⟩ ⟨(phi' (of' i.1 i.2))⁻¹ w, ⟨l, sorry⟩⟩)
       (λ a, inr (of (t, 1))⁻¹ *
         normalize_cons (mul_subscript ii (right_hom a))
-          ⟨phi' (of (t, 1)) (phi' a.right⁻¹ a.left * w), of' i.1 (ii * i.2) * ⟨l, sorry⟩⟩
-      )
+          ⟨phi' (of (t, 1)) (phi' a.right⁻¹ a.left * w), of' i.1 (ii * i.2) * ⟨l, sorry⟩⟩)
     else option.elim (hB old1)
       (normalize_cons ⟨old1.1 ++ [i], sorry⟩ ⟨(phi' (of' i.1 i.2))⁻¹ w, ⟨l, sorry⟩⟩)
       (λ a, inr (of (t, 1)) *
@@ -227,3 +226,4 @@ def normalize (t x : ι) (r' : free_group (ι × C∞))
   option (free_group (free_group ι) ⋊[phi'] free_group ι) :=
 let w' := remove_subscript_SD t (normalize_with_subscript t r' hr'₁ hr'₂ w) in
 if w'.right ∈ closure_var T then some w' else none
+
