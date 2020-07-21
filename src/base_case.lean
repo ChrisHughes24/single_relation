@@ -71,12 +71,9 @@ end
   { simp [inl_aut_inv, inl_aut, mul_assoc] }
 end
 
-lemma lhs_pow_single (r₁ : ι) (r₂ : C∞) (hr₂ : to_add r₂ ≠ 0): ∀ (x : (free_group ι)),
+lemma lhs_pow_single (r₁ : ι) (r₂ : C∞) (hr₂ : to_add r₂ ≠ 0) : ∀ x : free_group ι,
   lhs (of' r₁ r₂) (pow_single r₁ r₂ x) = x
 | ⟨[], h⟩     := by rw [pow_single]; simp
-| ⟨(i::l), _⟩ :=
-  begin
-    rw [pow_single, lhs_pow_single_cons, lhs_pow_single];
-    simp [inl_aut, inl_aut_inv, mul_assoc, hr₂],
-  end
+| ⟨(i::l), _⟩ :=by rw [pow_single, lhs_pow_single_cons, lhs_pow_single];
+    simp [inl_aut, inl_aut_inv, mul_assoc, hr₂]
 using_well_founded { rel_tac := λ _ _, `[exact ⟨λ _ _, true, sorry⟩], dec_tac := `[trivial] }
