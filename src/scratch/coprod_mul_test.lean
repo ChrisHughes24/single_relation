@@ -380,7 +380,7 @@ end
     { rw [← rcons_append, reduce_rcons _ ha] } }
 end
 
-@[simp] lemma reduce_append_reduce_eq_reduce_append : ∀ {l₁ l₂ : list (Σ i, G i)},
+@[simp] lemma reduce_append_reduce_eq_reduce_append : ∀ (l₁ l₂ : list (Σ i, G i)),
   reduce (l₁ ++ reduce l₂) = reduce (l₁ ++ l₂)
 | []      l₂ := by simp
 | (a::l₁) l₂ := by rw [cons_append, ← reduce_cons_reduce_eq_reduce_cons,
@@ -430,6 +430,287 @@ instance : monoid (coprod G) :=
   mul_assoc := λ a b c, subtype.eq (mul_aux_assoc a.2 b.2 c.2),
   one_mul := λ ⟨_, _⟩, rfl,
   mul_one := λ a, subtype.eq (mul_aux_nil a.2) }
+
+#print cast_eq
+-- ff means a cancellation didn't happen
+-- tt means a cancellation did happen
+def rcons' : (Σ i, G i) → list (Σ i, G i) × bool → list (Σ i, G i) × bool
+| i ([], _) := ([i], ff)
+| i (j::l, tt) :=
+  if hij : i.1 = j.1
+    then let c := i.2 * cast (congr_arg G hij).symm j.2 in
+      if c = 1
+        then (l, tt)
+        else (⟨i.1, c⟩ :: l, ff)
+    else (i::j::l, ff)
+| i (j::l, ff) := (i::j::l, ff)
+
+def mul_aux' (l₁ l₂ : list (Σ i, G i)) : list (Σ i, G i) × bool :=
+foldr rcons' (l₂, tt) l₁
+
+def rcons'' : (Σ i, G i) → list (Σ i, G i) → list (Σ i, G i) × bool
+| i [] := ([i], ff)
+| i (j::l) :=
+  if hij : i.1 = j.1
+    then let c := i.2 * cast (congr_arg G hij).symm j.2 in
+      if c = 1
+        then (l, tt)
+        else (⟨i.1, c⟩ :: l, ff)
+    else (i::j::l, ff)
+
+def list.init_last {α : Type*} : Π (l : list α) (hl : l ≠ []), list α × α
+| []        h := (h rfl).elim
+| [i]       h := ([], i)
+| (i::j::l) h :=
+  let ⟨init, lst⟩ := list.init_last (j ::l) (list.cons_ne_nil _ _) in (i::init, lst)
+#eval list.init_last [1,2,3,4] sorry
+-- `l₁++ [mid]` should always be reduced whenever this is called
+-- def mul_aux''_aux : Π (l₁ : list (Σ i, G i)) (mid : Σ i, G i)
+--   (l₂ : list (Σ i, G i)), list (Σ i, G i)
+-- | l₁      i []      := l₁ ++ [i]
+-- | []      i (j::l₂) :=
+--   if hij : i.1 = j.1
+--     then let c := i.2 * cast (congr_arg G hij).symm j.2 in
+--       if c = 1
+--         then l₂
+--         else ⟨i.1, c⟩::l₂
+--     else i::j::l₂
+-- | (i::l₁) j (k::l₂) :=
+--   if hij : j.1 = k.1
+--     then let c := j.2 * cast (congr_arg G hij).symm k.2 in
+--       if c = 1
+--         then let ⟨init, lst⟩ := list.init_last (i :: l₁) (list.cons_ne_nil _ _) in
+--           mul_aux''_aux init lst l₂
+--         else l₁ ++ (⟨j.1, c⟩::l₂)
+--     else (i::l₁) ++ (j::k::l₂)
+-- `hd.reverse ++ l₁` should be reduced should return `hd.reverse * l₁ * l₂
+def mul_aux₃ : Π (l₁ : list (Σ i, G i)) (hd : list (Σ i, G i))
+  (l₂ : list (Σ i, G i)), list (Σ i, G i)
+| []      []      l₂      := l₂
+| []      (i::hd) []      := list.reverse (i :: hd)
+| []      (i::hd) (j::l₂) :=
+  if hij : i.1 = j.1
+    then let c := i.2 * cast (congr_arg G hij).symm j.2 in
+      if c = 1
+        then mul_aux₃ [] hd l₂
+        else list.reverse_core hd (⟨i.1, c⟩::l₂)
+    else hd.reverse++i::j::l₂
+| (i::l₁) hd      l₂      := mul_aux₃ l₁ (i::hd) l₂
+
+lemma mul_aux₃_eq : ∀ (l₁ : list (Σ i, G i)) (hd : list (Σ i, G i))
+  (l₂ : list (Σ i, G i)), reduced (hd.reverse ++ l₁) → reduced l₂ →
+  mul_aux₃ l₁ hd l₂ = reduce (hd.reverse ++ l₁ ++ l₂)
+| []      []      l₂      h₁ h₂ := by simp [mul_aux₃, reduce_eq_self_of_reduced, *] at *
+| []      (i::hd) []      h₁ h₂ := by simp [mul_aux₃, reduce_eq_self_of_reduced, *] at *
+| []      (⟨i, a⟩::hd) (⟨j, b⟩::l₂) h₁ h₂ :=
+  begin
+    simp only [mul_aux₃],
+    dsimp only,
+    rcases decidable.em (i = j) with ⟨rfl, hij⟩,
+    { rw [dif_pos rfl, cast_eq],
+      split_ifs,
+      { rw [mul_aux₃_eq, append_nil, append_nil, reverse_cons, append_assoc,
+          cons_append, nil_append, ← reduce_append_reduce_eq_reduce_append _ (_ :: _),
+          reduce, if_neg, reduce, if_neg, rcons_rcons_of_add_eq_zero,
+          reduce_append_reduce_eq_reduce_append], } }
+
+  end
+| (i::l₁) hd      l₂      := mul_aux₃ l₁ (i::hd) l₂
+
+def X : Type := fin 1000000 → fin 1000000
+
+def f : X := id
+
+def f' : X := λ x, if x.1 = 999999 then ⟨1, by norm_num⟩ else x
+
+@[priority 10000] instance {α : Type}: has_repr (list α) :=
+⟨λ l, repr l.length⟩
+
+-- instance : has_repr (multiplicative ℤ) := int.has_repr
+
+--#eval (f = f' : bool)
+
+set_option profiler true
+
+#eval (@list.repeat (list (Σ i : X, ℕ)) [⟨f, 2⟩,⟨f',1⟩,⟨f,2⟩,⟨f',1⟩,
+    ⟨f, 2⟩,⟨f',1⟩,⟨f,4⟩,⟨f', 2⟩, ⟨f, 3⟩] 1).zip_with (λ x y, (mul_aux' x y).1)
+  (@list.repeat (list (Σ i : X, ℕ)) [⟨f, 4⟩, ⟨f', 5⟩] 1)
+
+#eval (@list.repeat (list (Σ i : X, ℕ)) [⟨f, 2⟩,⟨f',1⟩,⟨f,2⟩,⟨f',1⟩,
+    ⟨f, 2⟩,⟨f',1⟩,⟨f,4⟩,⟨f', 2⟩, ⟨f, 3⟩] 1).zip_with (λ x y, mul_aux₃ x [] y)
+  (@list.repeat (list (Σ i : X, ℕ)) [⟨f, 4⟩, ⟨f', 5⟩] 1)
+
+open multiplicative
+
+#eval
+  let l : list (Σ i : ℕ, multiplicative ℤ):= [⟨1, of_add 2⟩,
+    ⟨2, of_add 1⟩,⟨1, of_add 2⟩,⟨2, of_add 1⟩,
+    ⟨1, of_add 2⟩,⟨2, of_add 1⟩,⟨1, of_add 4⟩,⟨2, of_add 2⟩, ⟨1, of_add 3⟩] in
+  let l' : list (Σ i : ℕ, multiplicative ℤ):= l.reverse.map (λ x, ⟨x.1, x.2⁻¹⟩) in
+  --mul_aux₃ l [] l'
+((@list.repeat (list (Σ i : ℕ, multiplicative ℤ)) l 100000).zip_with
+    (λ x y, mul_aux x y)
+  (@list.repeat _ l' 100000))
+
+#eval
+  let l : list (Σ i : ℕ, multiplicative ℤ):= [⟨1, of_add 2⟩,
+    ⟨2, of_add 1⟩,⟨1, of_add 2⟩,⟨2, of_add 1⟩,
+    ⟨1, of_add 2⟩,⟨2, of_add 1⟩,⟨1, of_add 4⟩,⟨2, of_add 2⟩, ⟨1, of_add 3⟩] in
+  let l' : list (Σ i : ℕ, multiplicative ℤ):= (⟨2, of_add 3⟩ :: l) in
+((@list.repeat (list (Σ i : ℕ, multiplicative ℤ)) l 100000).zip_with
+    (λ x y, mul_aux' x y)
+  (@list.repeat _ l' 100000))
+
+#eval
+  let l : list (Σ i : ℕ, multiplicative ℤ):= [⟨1, of_add 2⟩,
+    ⟨2, of_add 1⟩,⟨1, of_add 2⟩,⟨2, of_add 1⟩,
+    ⟨1, of_add 2⟩,⟨2, of_add 1⟩,⟨1, of_add 4⟩,⟨2, of_add 2⟩, ⟨1, of_add 3⟩] in
+  let l' : list (Σ i : ℕ, multiplicative ℤ):= (⟨2, of_add 3⟩ :: l) in
+((@list.repeat (list (Σ i : ℕ, multiplicative ℤ)) l 100000).zip_with
+    (λ x y, mul_aux₃ x [] y)
+  (@list.repeat _ l' 100000))
+
+ --@mul_aux' ℕ (λ _, ℕ) _ _ _ [⟨1, 2⟩, ⟨2, 3⟩] [⟨3, 3⟩, ⟨4, 5⟩]
+
+-- @[simp] lemma mul_aux'_nil (l : list (Σ i, G i)): mul_aux' [] l = (l, tt) := rfl
+-- @[simp] lemma mul_aux'_cons (i : Σ i, G i) (l₁ l₂ : list (Σ i, G i)) :
+--   mul_aux' (i :: l₁) l₂ = rcons' i (mul_aux' l₁ l₂) := rfl
+
+-- @[simp] lemma rcons'_tt (i : Σ i, G i) : ∀ (l : list (Σ i, G i)),
+--   (rcons' i (l, tt)).1 = rcons i l
+-- | [] := rfl
+-- | [i] := by simp [rcons', rcons]; split_ifs; simp
+-- | (i::l) := by simp [rcons', rcons]; split_ifs; simp
+
+-- @[simp] lemma rcons'_ff (i : Σ i, G i) : ∀ (l : list (Σ i, G i)),
+--   rcons' i (l, ff) = (i :: l, ff)
+-- | [] := rfl
+-- | [i] := by simp [rcons', rcons]; split_ifs; simp
+-- | (i::l) := by simp [rcons', rcons]; split_ifs; simp
+
+-- @[simp] lemma foldr_ff : ∀ {l₁ l₂ : list (Σ i, G i)},
+--   foldr rcons' (l₂, ff) l₁ = (l₁ ++ l₂, ff)
+-- | []      l₂ := rfl
+-- | (i::l₁) l₂ := by rw [foldr_cons, foldr_ff, rcons'_ff, cons_append]
+
+-- -- def mul_aux3 : Π (b : bool) (l₁ l₂ : list (Σ i, G i)), list (Σ i, G i) × bool
+-- -- | ff l₁ l₂ := (l₁ ++ l₂, ff)
+-- -- | tt l₁ [] := (l₁, ff)
+-- -- | tt [] l₂ := (l₂, ff)
+-- -- | tt [i] (j::l₂) := sorry
+-- -- | tt (i::j::l₁) (k::l₂) := let x := mul_aux3 tt (j::l₁) (k :: l₂) in
+-- --  mul_aux3 x.2 [i] x.1
+
+-- lemma rcons'_eq_tt_iff {i j : Σ i, G i} {l : list (Σ i, G i)} :
+--   (rcons' i (j::l, tt)).2 = tt ↔ ∃ h : i.1 = j.1, i.2 * cast (congr_arg G h).symm j.2 = 1 :=
+-- by rw rcons'; split_ifs; simp *
+
+-- lemma rcons'_eq_ff : ∀ {l₁ : list (Σ i, G i)} {l₂ : list (Σ i, G i)}
+--   {i : Σ i, G i} (hi : i.2 ≠ 1), (rcons' i (l₂, tt)).2 = ff → reduced (l₁ ++ [i]) →
+--   reduced l₂ → reduced (l₁ ++ rcons i l₂)
+-- | l₁ [] i hi h₁  hr h₂  := hr
+-- | l₁ (i::l₂) j hj h₁ hr h₂ := begin
+--   have := mt rcons'_eq_tt_iff.2 (ne_of_eq_of_ne h₁ bool.ff_ne_tt),
+--   simp at this,
+
+-- end
+
+
+-- -- | l₁ [] i hi h₁  hr h₂  := hr
+-- -- | [] l₂ j hj h₁ hr h₂ := by simp [reduced_rcons hj h₂]
+-- -- --| [i] [] j hj h₁ hr h₂ := by simp [reduced_rcons hj h₂, rcons', *] at *
+-- -- | [i] (j::l) k hj h₁ hr h₂ := begin
+-- --   simp [rcons],
+-- --   split_ifs,
+-- --   { simp [rcons', *] at h₁, tauto },
+-- --   { cases i with i a,
+-- --     exact reduced_cons_cons sorry sorry sorry },
+-- --   { sorry }
+-- -- end
+-- -- | (i::j::l₁) (k::l₂) m hm h₁ hr h₂ := begin
+-- --   rw [cons_append, cons_append, rcons'_tt],
+-- --   split,
+-- --   { refine list.chain'_cons.2 _,
+-- --     simp, admit },
+
+-- --   admit
+-- -- end
+
+-- lemma foldr_eq_ff :  ∀ {l₁ l₂ : list (Σ i, G i)} {i : Σ i, G i}
+--   (h₁ : reduced (i :: l₁)) (h₂ : reduced l₂),
+--   (foldr rcons' (l₂, tt) l₁).2 = ff →
+--   reduced (i :: (foldr rcons' (l₂, tt) l₁).1)
+-- | []      l₂ i h₁ h₂ h := absurd h (by simp)
+-- | (j::l₁) l₂ i h₁ h₂ h := begin
+--   rw [foldr_cons, ← @prod.mk.eta _ _ (foldr rcons' (l₂, tt) (l₁))] at h,
+--   cases hb : (foldr rcons' (l₂, tt) (l₁)).2,
+--   { have := foldr_eq_ff (reduced_of_reduced_cons h₁) h₂ hb,
+--     rw [foldr_cons, ← @prod.mk.eta _ _ (foldr rcons' (l₂, tt) (l₁)), hb,
+--       rcons'_ff],
+--     dsimp, }
+
+-- end
+
+-- -- lemma mul_aux'_eq_mul_aux : ∀ {b : bool} {l₁ l₂ : list (Σ i, G i)} {i j : Σ i, G i}
+-- --   (h₁ : reduced l₁) (h₂ : reduced l₂)
+-- --   (h : b = ff → reduced (l₁ ++ l₂)),
+-- --   (foldr rcons' ([j] ++ l₂, b) (l₁ ++ [i])).1 = reduce (l₁ ++ [i, j] ++ l₂)
+-- -- | ff [] l₂ i j h₁ h₂ hb := begin
+-- --   simp [reduce, rcons'],
+-- --   rw [if_neg, if_neg], admit
+
+
+-- -- end
+
+-- -- lemma mul_aux'_eq_mul_aux : ∀ {b : bool} {l₁ l₂ : list (Σ i, G i)} {i j : Σ i, G i}
+-- --   (h₁ : reduced (l₁ ++ [i])) (h₂ : reduced ([j] ++ l₂))
+-- --   (h : b = ff → reduced (l₁ ++ [i, j] ++ l₂)),
+-- --   (foldr rcons' ([j] ++ l₂, b) (l₁ ++ [i])).1 = mul_aux (l₁ ++ [i]) ([j] ++ l₂) :=
+-- -- begin
+-- --   intros,
+-- --   rw [foldr_append, foldr_cons, foldr_nil, ← @prod.mk.eta _ _ (rcons' i ([j] ++ l₂, b))],
+-- --   cases b,
+-- --   { rw [rcons'_ff, mul_aux_eq_reduce_append h₁ h₂, append_assoc l₁, ← append_assoc [i],
+-- --       cons_append i, nil_append, ← append_assoc, reduce_eq_self_of_reduced (h rfl)],
+-- --     simp [rcons'], admit },
+-- --   { rw [rcons'_tt],
+-- --     cases h : (rcons' i ([j] ++ l₂, tt)).2,
+-- --     { rw [mul_aux_eq_reduce_append], },
+-- --      }
+
+-- -- end
+-- -- | tt  []  l₂ i j h₁ h₂ hb := by simp [mul_aux]
+-- -- | ff  []  l₂ i j h₁ h₂ hb := by admit
+-- -- | tt  [i] l₂ j k h₁ h₂ hb := by simp [mul_aux]
+-- -- | ff  (i::l₁) l₂ j k h₁ h₂ hb := begin
+-- --   rw [mul_aux_eq_reduce_append h₁ h₂, foldr_cons],
+
+-- -- end
+-- -- | tt (i::l₁) l₂ h₁ h₂ hb := begin
+-- --   rw [foldr_cons, ← @prod.mk.eta _ _ (foldr rcons' (l₂, tt) l₁)],
+-- --   cases h : (foldr rcons' (l₂, tt) l₁).2,
+-- --   { rw [rcons'_ff, mul_aux'_eq_mul_aux (reduced_of_reduced_cons h₁) h₂,
+-- --       mul_aux_eq_reduce_append (reduced_of_reduced_cons h₁) h₂,
+-- --       mul_aux_eq_reduce_append h₁ h₂], }
+
+-- -- end
+
+-- lemma mul_aux'_eq_mul_aux : ∀ {b : bool} {l₁ l₂ : list (Σ i, G i)}
+--   (h₁ : reduced l₁) (h₂ : reduced l₂) (h : b = ff → reduced (l₁ ++ l₂)),
+--   (foldr rcons' (l₂, b) l₁).1 = mul_aux l₁ l₂
+-- | b   []  l₂ h₁ h₂ hb := rfl
+-- | tt  [i] l₂ h₁ h₂ hb := by simp [mul_aux]
+-- | ff  l₁ l₂ h₁ h₂ hb := by simp [mul_aux_eq_reduce_append h₁ h₂,
+--     reduce_eq_self_of_reduced, *] at *
+-- | tt (i::l₁) (j::l₂) h₁ h₂ hb := begin
+--   rw [foldr_cons, ← @prod.mk.eta _ _ (foldr rcons' (j::l₂, tt) l₁)],
+--   cases h : (foldr rcons' (j::l₂, tt) l₁).2,
+--   {
+
+--       }
+
+-- end
+
 
 -- def inv_aux (l : list (Σ i, G i)) : list (Σ i, G i) :=
 -- l.reverse.map (λ a, (a.1, -a.2))
@@ -510,5 +791,5 @@ instance : monoid (coprod G) :=
 -- def map : coprod ι →* coprod β :=
 -- { to_fun := λ ⟨l, hl⟩, ⟨l.map e, _⟩ }
 
--- end coprod
+end coprod
 

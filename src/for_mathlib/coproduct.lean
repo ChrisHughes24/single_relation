@@ -1,15 +1,6 @@
 import tactic.equiv_rw tactic group_theory.subgroup group_theory.semidirect_product
 
 universes u v w x y z
-#print string.length
-
-@[simp] example (s : string) : s.length = s.data.length :=
-begin
-  cases s, refl,
-
-end
-
-example (n : ℕ) : n ≤ n.succ := by omega
 
 def mul_left {G : Type*} [group G] : G →* equiv.perm G :=
 { to_fun := λ g,

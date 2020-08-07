@@ -1,4 +1,4 @@
-import for_mathlib.coproduct
+import for_mathlib.coprod.free_group
 
 variables {ι : Type} [decidable_eq ι]
 
@@ -20,9 +20,9 @@ noncomputable def cyclically_reduce : free_group ι → free_group ι × free_gr
     let z := k.2 * i.2 in
     if z = 1
     then
-       let init : free_group ι := ⟨(j :: l : list _).init, sorry⟩ in
-       let w' := cyclically_reduce init in
-       (w'.1 * of' k.1 k.2, w'.2)
+      let init : free_group ι := ⟨(j :: l : list _).init, sorry⟩ in
+      let w' := cyclically_reduce init in
+      (w'.1 * of' k.1 k.2, w'.2)
     else
       (of' k.1 k.2, ⟨⟨k.1, z⟩ ::  (j :: l : list _).init, sorry⟩)
   else (1, ⟨i::j::l, h⟩)

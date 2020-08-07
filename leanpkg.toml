@@ -1,8 +1,8 @@
 [package]
 name = "single_relation"
 version = "0.1"
-lean_version = "leanprover-community/lean:3.17.1"
+lean_version = "leanprover-community/lean:3.18.4"
 path = "src"
 
 [dependencies]
-mathlib = {git = "https://github.com/leanprover-community/mathlib", rev = "4dc0814ee529abb7bec989b65d82a0f93921c048"}
+mathlib = {git = "https://github.com/leanprover-community/mathlib", rev = "f4b2790d7c3c1cd91c0402ba87d3f62ab7b0af70"}

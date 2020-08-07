@@ -1,4 +1,4 @@
-import group_theory.semidirect_product for_mathlib.coproduct
+import group_theory.semidirect_product for_mathlib.coprod.free_group
 
 noncomputable theory
 
@@ -8,8 +8,20 @@ variables {K : Type} [group K] [decidable_eq K]
 
 open free_group semidirect_product function
 
+def mul_left {G : Type*} [group G] : G →* equiv.perm G :=
+{ to_fun := λ g,
+  { to_fun := λ h, g * h,
+    inv_fun := λ h, g⁻¹ * h,
+    left_inv := λ _, by simp [mul_assoc],
+    right_inv := λ _, by simp [mul_assoc] },
+  map_one' := by ext; simp,
+  map_mul' := λ _ _, by ext; simp [mul_assoc] }
+
+@[simp] lemma coe_fn_mul_left {G : Type*} [group G] (g : G) : (⇑(_root_.mul_left g) : G → G) = (*) g := rfl
+@[simp] lemma coe_fn_mul_left_symm {G : Type*} [group G] (g : G) : (⇑(_root_.mul_left g).symm : G → G) = (*) g⁻¹ := rfl
+
 def mul_free : G →* mul_aut (free_group G) :=
-{ to_fun := λ g, free_group.equiv (mul_left g),
+{ to_fun := λ g, free_group.equiv (_root_.mul_left g),
   map_mul' := by simp [mul_aut.mul_def, equiv.perm.mul_def],
   map_one' := by simp [mul_aut.one_def, equiv.perm.one_def] }
 
@@ -37,8 +49,7 @@ def lhs (r : G) : P G →* G :=
 semidirect_product.lift (free_group.lift (λ g, mul_aut.conj g r))
   (monoid_hom.id _)
   (λ g, free_group.hom_ext
-    (by simp [free_group.lift, of_eq_of', ii, multiplicative.to_add, gpowers_hom,
-      mul_assoc]))
+    (by simp [of'_eq_of_pow, gpowers_hom, mul_assoc]))
 
 @[simp] lemma lhs_comp_inr : (lhs r).comp inr = monoid_hom.id _ :=
 by simp [lhs]
@@ -66,42 +77,27 @@ by simp [lhs, right_hom, trans_eq]
 
 section map
 
-def map_aux (f : G →* H) (hf : injective f) : P G → P H :=
-λ x, ⟨free_group.embedding ⟨f, hf⟩ x.1, f x.2⟩
-
 def map (f : G →* H) (hf : injective f) : P G →* P H :=
-{ to_fun := map_aux f hf,
-  map_mul' := λ ⟨pr₁, rh₁⟩ ⟨pr₂, rh₂⟩, begin
-      refine semidirect_product.ext _ _ _ _,
-      { simp [map_aux],
-        simp only [← monoid_hom.comp_apply, ← mul_equiv.to_monoid_hom_apply],
-        refine congr_fun (congr_arg _ _) _,
-        refine free_group.hom_ext _,
-        simp [of_eq_of'] },
-      { simp [map_aux] }
-    end,
-  map_one' := by simp [map_aux] }
+semidirect_product.map (free_group.embedding ⟨f, hf⟩) f
+  (λ g, free_group.hom_ext (by simp))
 
 @[simp] lemma map_id : map (monoid_hom.id G) injective_id = monoid_hom.id (P G) :=
-semidirect_product.hom_ext (free_group.hom_ext (by simp [map, map_aux, of_eq_of']))
-  (monoid_hom.ext $ by simp [map, map_aux])
+semidirect_product.hom_ext (free_group.hom_ext (by simp [map]))
+  (monoid_hom.ext $ by simp [map])
 
-def change_r (r w : G) (x : P G) : P G :=
-⟨free_group.equiv (equiv.mul_right w⁻¹) x.1, x.2⟩
+def change_r (r w : G) : P G →* P G :=
+semidirect_product.map (free_group.equiv (equiv.mul_right w⁻¹)).to_monoid_hom
+  (monoid_hom.id _)
+  (λ g, free_group.hom_ext $ by simp [mul_assoc])
 
-@[simp] lemma lhs_change_r (r w : G) (x : P G) :
-  lhs (w * r * w⁻¹) (change_r r w x) = lhs r x :=
-begin
-  rw [lhs, lhs, change_r],
-  cases x,
-  simp,
-  simp only [← monoid_hom.comp_apply, ← mul_equiv.to_monoid_hom_apply],
-  refine congr_fun (congr_arg _ _) _,
-  refine free_group.hom_ext _,
-  simp [mul_assoc, of_eq_of', free_group.lift]
-end
+@[simp] lemma lhs_comp_change_r (r w : G) :
+  (lhs (w * r * w⁻¹)).comp (change_r r w) = lhs r :=
+semidirect_product.hom_ext (free_group.hom_ext
+  (by simp [change_r, mul_assoc]))
+  (by simp [monoid_hom.comp_assoc, change_r])
 
-@[simp] lemma right_hom_change_r (r w : G) (x : P G) : right_hom (change_r r w x) = right_hom x := rfl
+@[simp] lemma right_hom_comp_change_r (r w : G) (x : P G) :
+  right_hom.comp (change_r r w) = right_hom := rfl
 
 end map
 
