@@ -10,3 +10,4 @@ all.lean
 *.fls
 *.out
 *.fdb_latexmk
+*.synctex.cz
