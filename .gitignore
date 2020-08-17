@@ -1,3 +1,12 @@
 *.olean
 /_target
 /leanpkg.path
+_cache
+__pycache__
+all.lean
+*.depend
+*.aux
+*.log
+*.fls
+*.out
+*.fdb_latexmk
