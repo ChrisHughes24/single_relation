@@ -143,10 +143,27 @@ le_antisymm
 def closure_var (T : set ι) : subgroup (free_group ι) :=
 blah (λ i, ⨆ (h : i ∈ T), ⊤)
 
+instance decidable_blah [Π i : ι, decidable_pred (∈ S i)] : decidable_pred (∈ blah S) :=
+λ w, show decidable (∀ (a : Σ i : ι, C∞ ), a ∈ w.to_list → a.2 ∈ S a.1),
+  by apply_instance
+
+instance decidable_closure_var (T : set ι) [decidable_pred T] : decidable_pred (∈ closure_var T) :=
+λ w, decidable_of_iff (list.all w.to_list (λ i, i.1 ∈ T)) sorry
+
+lemma mem_supr_of_mem {G : Type*} [group G] {ι : Type*} {S : ι → subgroup G} (i : ι) :
+  ∀ {x : G}, x ∈ S i → x ∈ supr S :=
+show S i ≤ supr S, from le_supr _ _
+
 lemma range_lift {G : Type*} [group G] (f : ι → G) :
   (free_group.lift f).range = subgroup.closure (set.range f) :=
 begin
   simp only [free_group.lift, range_lift', subgroup.range_gpowers_hom,
     gpowers_eq_closure],
-  sorry
+  refine le_antisymm _ _,
+  { exact supr_le (λ x, closure_mono (λ y, by simp {contextual := tt})) },
+  { refine (closure_le _).2 _,
+    rw [set.range_eq_Union],
+    refine set.Union_subset (λ i x hx, _),
+    rw [subgroup.mem_coe],
+    exact mem_supr_of_mem i (subgroup.subset_closure hx) }
 end

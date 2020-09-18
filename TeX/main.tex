@@ -1,0 +1,395 @@
+\def\paperversiondraft{draft}
+\def\paperversionblind{blind}
+
+\ifx\paperversion\paperversionblind
+\else
+  \def\paperversion{blind}
+\fi
+
+% !TEX TS-program = pdflatex
+% !TEX encoding = UTF-8 Unicode
+
+% This is a simple template for a LaTeX document using the "article" class.
+% See "book", "report", "letter" for other types of document.
+
+\documentclass[11pt]{article} % use larger type; default would be 10pt
+
+\usepackage{xargs}
+\usepackage{todonotes}
+\usepackage{xparse}
+\usepackage{xifthen, xstring}
+\usepackage{ulem}
+\usepackage{xspace}
+\makeatletter
+\font\uwavefont=lasyb10 scaled 652
+\DeclareSymbolFontAlphabet{\mathrm}    {operators}
+\DeclareSymbolFontAlphabet{\mathnormal}{letters}
+\DeclareSymbolFontAlphabet{\mathcal}   {symbols}
+\DeclareMathAlphabet      {\mathbf}{OT1}{cmr}{bx}{n}
+\DeclareMathAlphabet      {\mathsf}{OT1}{cmss}{m}{n}
+\DeclareMathAlphabet      {\mathit}{OT1}{cmr}{m}{it}
+\DeclareMathAlphabet      {\mathtt}{OT1}{cmtt}{m}{n}
+\newcommand\colorwave[1][blue]{\bgroup\markoverwith{\lower3\p@\hbox{\uwavefont\textcolor{#1}{\char58}}}\ULon}
+% \makeatother
+
+% \ifx\paperversion\paperversiondraft
+% \newcommand\createtodoauthor[2]{%
+% \def\tmpdefault{emptystring}
+% \expandafter\newcommand\csname #1\endcsname[2][\tmpdefault]{\def\tmp{##1}\ifthenelse{\equal{\tmp}{\tmpdefault}}
+%    {\todo[linecolor=#2!20,backgroundcolor=#2!25,bordercolor=#2,size=\tiny]{\textbf{#1:} ##2}}
+%    {\ifthenelse{\equal{##2}{}}{\colorwave[#2]{##1}\xspace}{\todo[linecolor=#2!10,backgroundcolor=#2!25,bordercolor=#2]{\tiny \textbf{#1:} ##2}\colorwave[#2]{##1}}}}}
+% \else
+% \newcommand\createtodoauthor[2]{%
+% \expandafter\newcommand\csname #1\endcsname[2][\@nil]{}}
+% \fi
+
+
+% \createtodoauthor{chris}{red}
+% \createtodoauthor{tobias}{blue}
+% \createtodoauthor{authorThree}{green}
+% \createtodoauthor{authorFour}{orange}
+% \createtodoauthor{authorFive}{purple}
+
+
+%%% Examples of Article customizations
+% These packages are optional, depending whether you want the features they provide.
+% See the LaTeX Companion or other references for full information.
+
+%%% PAGE DIMENSIONS
+\usepackage{geometry} % to change the page dimensions
+\geometry{a4paper} % or letterpaper (US) or a5paper or....
+\geometry{margin=1in} % for example, change the margins to 2 inches all round
+% \geometry{landscape} % set up the page for landscape
+%   read geometry.pdf for detailed page layout information
+
+\usepackage{graphicx} % support the \includegraphics command and options
+
+% \usepackage[parfill]{parskip} % Activate to begin paragraphs with an empty line rather than an indent
+
+% Broaden margins to make room for todo notes
+\ifx\paperversion\paperversiondraft
+  \paperwidth=\dimexpr \paperwidth + 6cm\relax
+  \oddsidemargin=\dimexpr\oddsidemargin + 3cm\relax
+  \evensidemargin=\dimexpr\evensidemargin + 3cm\relax
+  \marginparwidth=\dimexpr \marginparwidth + 3cm\relax
+  \setlength{\marginparwidth}{4cm}
+\fi
+
+\usepackage[utf8x]{inputenc}
+\usepackage{amssymb}
+
+\usepackage{color}
+\definecolor{keywordcolor}{rgb}{0.7, 0.1, 0.1}   % red
+\definecolor{commentcolor}{rgb}{0.4, 0.4, 0.4}   % grey
+\definecolor{symbolcolor}{rgb}{0.0, 0.1, 0.6}    % blue
+\definecolor{sortcolor}{rgb}{0.1, 0.5, 0.1}      % green
+
+\usepackage{listings}
+
+
+%%% PACKAGES
+\usepackage{inputenc}
+\usepackage{booktabs} % for much better looking tables
+\usepackage{array} % for better arrays (eg matrices) in maths
+\usepackage{paralist} % very flexible & customisable lists (eg. enumerate/itemize, etc.)
+\usepackage{verbatim} % adds environment for commenting out blocks of text & for better verbatim
+\usepackage{subfig} % make it possible to include more than one captioned figure/table in a single float
+
+\usepackage{textcomp}
+
+
+% These packages are all incorporated in the memoir class to one degree or another...
+
+%%% HEADERS & FOOTERS
+\usepackage{fancyhdr} % This should be set AFTER setting up the page geometry
+\pagestyle{fancy} % options: empty , plain , fancy
+\renewcommand{\headrulewidth}{0pt} % customise the layout...
+\lhead{}\chead{}\rhead{}
+\lfoot{}\cfoot{\thepage}\rfoot{}
+
+%%% SECTION TITLE APPEARANCE
+\usepackage{sectsty}
+\allsectionsfont{\sffamily\mdseries\upshape} % (See the fntguide.pdf for font help)
+% (This matches ConTeXt defaults)
+
+%%% ToC (table of contents) APPEARANCE
+\usepackage[nottoc,notlof,notlot]{tocbibind} % Put the bibliography in the ToC
+\usepackage[titles,subfigure]{tocloft} % Alter the style of the Table of Contents
+\renewcommand{\cftsecfont}{\rmfamily\mdseries\upshape}
+\renewcommand{\cftsecpagefont}{\rmfamily\mdseries\upshape} % No bold!
+
+\setlength{\parindent}{0em}
+\setlength{\parskip}{1em}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{upgreek}
+\theoremstyle{definition}
+\newtheorem{theorem}{Theorem}[section]
+\theoremstyle{definition}
+\newtheorem{corol}{Corollary}[theorem]
+\theoremstyle{definition}
+\newtheorem{lemma}[theorem]{Lemma}
+\theoremstyle{definition}
+\newtheorem{sublemma}{Lemma}[theorem]
+\theoremstyle{definition}
+\newtheorem{defn}[theorem]{Definition}
+\theoremstyle{definition}
+\newtheorem{subdef}{Definition}[theorem]
+
+\usepackage{hyperref}
+
+
+%%% END Article customizations
+
+%%% The "real" document content comes below...
+
+\title{Group Representation Theory Coursework 1}
+
+\begin{document}
+\raggedright
+\section{The Proof Certificate}
+
+An element of a group $G$ is equal to one in the quotient by the normal closure
+of a relation $r$ if and only if it can be written as a product of conjugates of $r$ and $r^{-1}$.
+More precisely, there is a group homomorphism $e : F(G) \to G$, from the free group
+over $G$ into $G$ that sends a basis element of $F(G)$,
+$g \in G$ to $grg^{-1} \in G$. The image of this map is exactly the kernel of the quotient map.
+Therefore an element $p$ of $F(G)$ such that $e(p) = w$ can be seen as a witness that $w$ is in
+the kernel of the quotient map.
+
+The algorithm returns a pair of a normalised word $w'$, and
+$p \in F(G)$ such that $w = e(p) w'$.
+
+\begin{defn}[P functor]
+  We define a group structure on this set of pairs.
+  For any $g \in G$ define an automorphism $MulFree(g)$ of $F(G)$, by sending a basis
+  element $h \in G$ to $gh$. This defines a left action of $G$ on $F(G)$. The group
+  structure is given by the semidirect product. Define the group $P(G)$ to be
+  \begin{equation}
+  P(G) := F(G) \rtimes_{MulFree} G
+  \end{equation}
+  This group has multiplication given by $(a, b) (a', b') = (a MulFree(b)(a'), bb')$
+\end{defn}
+
+\begin{subdef}[lhs and rhs]
+We define two group homomorphisms from $P$ into $G$. $\text{rhs}$ is the obvious map sending $(a, b)$ to $b$.
+$\text{lhs}$ is the map sending $(a,b)$ to $e(a)b$. Since $e(a)$ is in the kernel of the quotient map,
+for any $p\in P(G)$, $\text{lhs}(p)$ and $\text{rhs}(p)$ are equal in the quotient by $r$.
+Therefore an element $p$ of $P(G)$ can be regarded as a certificate of the congruence
+$\text{lhs}(p) = \text{rhs}(p) \text{ mod } r$.
+\end{subdef}
+
+Because both $\text{lhs}$ and $\text{rhs}$ are group homomorphisms, if $p \in P(G)$ is a certificate
+of the congruence $a = b \text{ mod } r$, and $q$ is a certificate of the congruence
+$c = d \text{ mod } r$, then $pq$ is a certificate of the congruence $ac = bd \text{ mod } r$.
+Similarly $p^{-1}$ is a certificate of the congruence $a^{-1} = b^{-1} \text{ mod } r$.
+
+\begin{subdef}($P$ is functorial).
+  Given a homomorphism $f : G \to H$.
+  Functoriality of the free group gives a natural map $F(f) : F(G) \to F(H)$ from $f : G \to H$.
+  Define the map $P(f) : P(G) \to P(H)$ to send $(p, b) \in P(G)$ to $(F(f)(p), f(b)) \in P(H)$.
+  Given a certificate of the congruence $a = b \text{ mod } r$, this map returns
+  a certificate of the congruence $f(a) = f(b) \text{ mod } f(r)$.
+\end{subdef}
+
+
+\begin{subdef}(Trans)
+  Given $p,q \in P(G)$ such that $p$ is a certificate of the congruence $a = b \text{ mod } r$,
+  and $q$ is a certificate of the congruence $b = c \text{ mod } r$, then it is possible to define
+  $\text{Trans}(p,q)$ such that $\text{Trans}(p,q)$ is a certificate of the congruence $a = c \text{ mod } r$.
+  If $p = (p_1, p_2)$, and $q = (q_1, q_2)$, then $\text{Trans}(p,q) = (p_1q_1, q_2)$.
+\end{subdef}
+
+\begin{subdef}(Refl)
+  Given $a \in G$, $(1, a)$ is a certificate of the congruence $a = a \text{ mod } r$. Call
+  this $\text{Refl}(a)$.
+\end{subdef}
+
+It is also possible to define $\textit{Symm}$, such that $\text{lhs}(\text{Symm}(p)) = \text{rhs}(p)$
+and vice versa, but this is not used in the algorithm.
+
+\begin{subdef}(ChangeRel)
+  Given a certificate $p$ of the congruence $a = b \text{ mod } r$, then it is possible
+  to make a certificate of the congruence $a = b \text{ mod } g r g^{-1}$ for any $g \in G$.
+  This
+\end{subdef}
+
+\section{Adding and Removing Subscripts}
+
+Given a letter $t$ in the free group over a set $S$, we can define a map into a
+semidirect product.
+
+\begin{defn}[ChangeSubscript]\label{changesubscript}
+  Define a homomorphism \textit{ChangeSubscript} from $\mathbb{Z}$ to the automorphism
+  group of $F(S \times \mathbb{Z})$. If $(x, n) \in S \times mathbb{Z}$ is a basis
+  element of the free group, then $\text{AddBasis}(m)(x, n) = (x, m + n)$.
+\end{defn}
+
+\begin{defn}[AddSubscripts]\label{AddSubscripts}
+  There is a homomorphism \textit{AddSubscripts} from $F(S)$ into $F(S \times \mathbb{Z})
+  \rtimes_{\text{ChangeSubscript}} \mathbb{Z}$ sending a basis element $s \in S$ to
+  $(s, 0) \in F(S \times \mathbb{Z})$, when $s \ne t$ and sending $t$ to
+  $(1, 1_\mathbb{Z}) \in F(S \times \mathbb{Z}) \rtimes \mathbb{Z}$. Loosely, this map
+  replace occurence of $t^n at^{-n}$ with $a_t$
+\end{defn}
+
+The map \textit{AddSubscripts} is only used during the algorithm on words $w$ when the sum of the
+exponents of $t$ in $w$ is zero, meaning the result will be of the form $(w', 0_{\mathbb{Z}})$.
+
+\begin{defn}[RemoveSubscripts]
+  \textit{RemoveSubscripts} send a basis element of $F(S\times \mathbb{Z})$,  $(s, n) \in S\times \mathbb{Z}$
+  to $t^n s t^{-n}$.
+\end{defn}
+\textit{RemoveSubscripts} is a group homomorphism and if $r$ is a word such that
+of $\text{Addsubscripts}(r)$ is of the form $(r', 0_\mathbb{Z})$, then $\text{RemoveSubscripts}(r')=r$.
+
+\section{HNN Extensions}\label{HNN}
+
+\begin{defn}[HNN Extension]
+  Given a group $G$ and subgroups $A$ and $B$ of $G$, and an isomorphism $\phi : A \to B$, we can define
+  the \textit{HNN extension} of $G$. Let $\langle t \rangle$ be a multiplicative group isomorphic to
+  $\mathbb{Z}$, generated by $t$. The HNN extension is the coproduct of $G$ and $\langle t \rangle$ quotiented
+  by the normal closure of the set $\{ta t^{-1} = \phi(a) | a \in A\}$
+\end{defn}
+
+\begin{theorem}[Britton's Lemma]\label{britton}
+  Let $w = g_0t^{k_1}g_1t^{k_2}g_2 \cdots t^{k_n}g_n$ be a word in the HNN extension.
+  If for every $i$, $k_i \ne 0$, $k_i > 0 \implies g_i \notin A$ and $k_i < 0 \implies g_i \notin B$,
+  and $w$ contains a $t$, then $w \ne 1$
+  cite (On Britton's theorem Charles Miller)
+\end{theorem}
+\begin{corol}\label{genbritton}
+  If a word $w$ meets the same conditions as in the statement of Britton's Lemma,
+  then $w$ cannot be written as a $t$ free word.
+\end{corol}
+\textit{Proof.} Suppose $w = g$ with $g \in G$, then $g^{-1}w$ also meets the conditions
+in Theorem \ref{britton}, and therefore $g^{-1}w \ne 1$, contradicting $w = g$.
+
+The HNN normalization process replaces any occurences of $ta$ with $\phi(a)t$ when $a \in A$, and
+any occurance of $t^{-1}b$ with $\phi^{-1}(b)t^{-1}$ when $b \in B$. This produces a word of
+the form in Theorem \ref{britton}.
+
+\section{HNN normalization}\label{HNNnorm}
+
+We first present a simplified version of the HNN normalization that does not compute
+the proof certificates, and then explain how to compute the certficates at the same time as normalization.
+
+To compute the HNN normalized term, first compute the following isomorphism from $F(S)$ into the binary
+coproduct $F(S'') \ast \langle t' \rangle$. $\langle t' \rangle$ is a cyclic
+multiplicative group isomorphic to $\mathbb{Z}$ and generated by $t'$.
+
+\begin{defn}\label{tocoprod}
+  Define a map on a basis element $i$ as follows
+  \begin{equation}
+    \begin{cases}
+      (i, 0) \in F(S'') & i \ne t \\
+      t' & i = t
+    \end{cases}
+  \end{equation}
+\end{defn}
+
+It is important that $a \le 0 \le b$, to ensure that this map does map into $F(S'' \times \langle t' \rangle)$.
+
+Then apply the HNN normalization procedure. For this particular HNN extension $\phi$ is \textit{ChangeSubscript}
+(Definition \ref{changesubscript}). For each occurence of
+$gt'^{-1}$, we can use \textit{Solve} to check whether $g$ is equal
+to a word  $a \in A$ in the quotient $F(S'') / r'$, and if it is equal to some word $a$, rewrite
+$gt'^{-1}$ to $t'\text{Changesubscript}(-1)(a)$. Similarly, For each occurence of $gt'$, use \textit{Solve}
+to check whether $g$ is equal to a word $b \in B$ in the quotient $F(S'') / r'$, and if it it equal to
+some word $b$ rewrite $gt'$ to $t'\text{ChangeSubscript}(1)(b)$.
+
+This is a slight deviation from the procedure decscribed in
+Section \ref{HNN}, the rewriting rules are applied in the opposite direction, and therefore
+the words are not quite in the normal form described in Theorem \ref{britton}, but are in a reversed
+version of this normal form.  The rewriting rules are applied from left to right; wherever a rewriting rule
+is applied, everything to the left of where that rule is applied should already be in
+HNN normal form. The reasons for these are to generate shorter certificates and are described
+in Section \ref{HNNPC}.
+
+% \begin{defn}[HNNNormalizeCore]
+% The function \textit{HNNNormalizeCore} takes an unnormalized word $w$ and a normalized word $v$
+% both in the binary coproduct. It will return an HNN normalized word $vw$. It is defined by cases.
+% When $w = 1$, it returns $v$. When $w = gw'$ for some $g \in F(S'')$ and $v = 1$, then it returns
+
+%   \begin{equation}
+%       \text{HNNNormalizeCore}(v, w) = \\
+%       \begin{cases}
+%         v & \text{if } w=1 \\
+%         \text{HNNNormalizeCore}(n, w') & \text{if } w = gw' \text{ for some } g \text{ and } v = 1 \\
+%         \text{HNNNormalizeCore}(vg, w') & \text{if } w = gw' \text{ for some } g \in F(S'') \\
+%         \text{HNNNormalizeCore}(v' \text{ChangeSubscript(k, {Solve}(a, A), w')) \text{if } w = aw'
+%           \text{ for some } a \in A
+%       \end{cases}
+%   \end{equation}
+% \end{defn}
+
+\subsection{Computing Proof Certificates}\label{HNNPC}
+
+To compute proof certificates a slightly modification of the procedure described in Section
+\ref{HNNnorm} is used.
+
+First define a modification of Definition \ref{tocoprod}, from $F(S)$ into the binary
+coproduct $P(F(S \times \mathbb{Z})) \ast \langle t' \rangle$.
+
+\begin{defn}\label{tocoprodP}
+  Define a map on the basis as follows
+  \begin{equation}
+    \begin{cases}
+      \text{Refl}(i, t'^0) \in F(S'' \times \langle t' \rangle) & i \in S \text{ and } i \ne t \\
+      t' & i = t
+    \end{cases}
+  \end{equation}
+\end{defn}
+
+There is also a map $Z$ from $P(F(S \times \mathbb{Z})) \ast \langle t' \rangle$ into
+$P(F(S))$. This map is not computed as part of the algorithm, but is useful to define anyway.
+
+\begin{defn}
+  The map $Z$ sends $t' \in \langle t' \rangle$ to $\text{Refl}(t) \in P(F(S))$.
+  It sends $p \in P(F(S \times \mathbb{Z}))$ to $P(\text{RemoveSubscripts})(p) \in P(F(S))$
+\end{defn}
+
+The aim is to define a normalization process into that turns a word $w \in F(S)$ into
+word $n \in P(F(S \times \mathbb{Z})) \ast \langle t' \rangle$,
+such that after applying \textit{rhs}, the same word is returned as in the
+normalization process described in Section \ref{HNNnorm}. We also want
+$\text{lhs}(Z(n))$ to be equal to $w$, so we send up with a certificate that $w$
+is equal to some normalized word.
+
+\begin{defn}(conjP)\label{conjP}
+  Let $(p, a) \in P(F(S \times \mathbb{Z}))$ and $k \in \mathbb{Z}$.
+  Define \textit{ConjP} to map into $P(F(S \times \mathbb{Z}))$
+  \begin{equation}
+    \text{ConjP}(k, (p, a)) = (\text{MulFree}((t,0)^k, p), \text{ChangeSubscript}(k, a))
+  \end{equation}
+\end{defn}
+
+\textit{conjP} has the property that $\text{lhs}(Z(\text{conjP}(k, p))) = t^k \text{lhs}(Z(p))t^{-k}$,
+and similarly for \textit{rhs}. Note that $\textit{conjP}$ maps into $P(F(S \times \mathbb{Z}))$,
+and not $P(F(S''))$, although $\textit{rhs}$ of every word computed
+will be in $F(S'')$.
+
+The procedure described in Section \ref{HNNnorm}
+replaced each occurence of $gt'^{-1}$ with $t'\text{ChangeSubscript}(-1)(a)$,
+where $a \in A$ was a word equal to $g \in F(S'')$ in the quotient
+$F(S'') / r'$.
+
+To compute the proof certificate suppose there is an occurence of $pt'^{-1}$ with
+$p \in P(F(S \times \mathbb{Z}))$. Use \textit{Solve} to check whether $\text{rhs}(p)$ is
+equal to a word $a \in A$. Suppose $q \in  P(F(S''))$ is the certificate
+of this congruence. Then substitute $gt'^{-1}$ with $t'\text{ConjP}(1, \text{Trans}(p, q))$.
+
+Similarly replace for every occurence of $pt'$, with $\text{rhs}(p)$ equal to some word $b \in B$,
+and $q$ a certificate of this congruence, replace $pt'$ with $t'^{-1}\text{ConjP}(-1, \text{Trans}(p, q))$.
+
+\subsubsection{Proof Lengths}
+
+It is important to apply the rewriting procedure from left to right. This will usually
+produce shorter proof certificates. Consider normalizing $w v$ with $w, v \in F(S'')$.
+Supppose $v$ is normalized first to $v'$ and then $wv'$ is normalized all together.
+
+
+
+
+
+\end{document}

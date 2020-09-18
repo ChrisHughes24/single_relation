@@ -362,6 +362,9 @@ def mul_aux : Π (l₁ l₂ : list (Σ i, M i)), list (Σ i, M i)
         else l₁.reverse_core (⟨i.1, c⟩::l₂)
     else l₁.reverse_core (i::j::l₂)
 
+@[simp] lemma mul_aux_nil (l : list (Σ i, M i)) : mul_aux l [] = l.reverse :=
+by cases l; refl
+
 lemma mul_aux_eq_reduce_append : ∀ {l₁ l₂: list (Σ i, M i)},
   reduced l₁ → reduced l₂ → mul_aux l₁ l₂ = reduce (l₁.reverse ++ l₂)
 | []          l₂          := λ h₁ h₂,

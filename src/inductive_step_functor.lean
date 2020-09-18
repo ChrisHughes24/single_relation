@@ -1,8 +1,8 @@
-import for_mathlib.coprod.free_group
-import group_theory.semidirect_product
+import for_mathlib.coprod.free_group_subgroup
 import .functor
 import .cyclically_reduce
-import data.finset
+import .initial
+import tactic
 
 noncomputable theory
 
@@ -19,7 +19,7 @@ def mul_subscript : C∞ →* free_group (ι × C∞) ≃* free_group (ι × C�
   map_one' := sorry,
   map_mul' := sorry }
 
-lemma add_subscript (t : ι) : free_group ι →* free_group (ι × C∞) ⋊[mul_subscript] C∞ :=
+def add_subscript (t : ι) : free_group ι →* free_group (ι × C∞) ⋊[mul_subscript] C∞ :=
 free_group.lift' (λ j,
   if t = j
   then semidirect_product.inr
@@ -29,7 +29,7 @@ def remove_subscript (t : ι) : free_group (ι × C∞) →* free_group ι :=
 free_group.lift' (λ g, (mul_aut.conj (of' t g.2)).to_monoid_hom.comp (of' g.1))
 
 @[simp] lemma remove_subscript_comp_mul_subscript (t : ι) (n : C∞) :
-  (remove_subscript t).comp (mul_subscript n).to_monoid_hom =
+  (remove_subscript t).comp (@mul_subscript ι _ n).to_monoid_hom =
   (mul_aut.conj (of' t n)).to_monoid_hom.comp (remove_subscript t) :=
 free_group.hom_ext
   (by simp [remove_subscript, mul_subscript, lift'_eq_lift, of'_eq_of_pow, gpow_add, mul_assoc])
@@ -53,16 +53,6 @@ semidirect_product.lift (remove_subscript t) (of' t)
 
 include r
 
-/-- Not the correct definition -/
-structure solver (T : set ι): Type :=
-(to_fun : free_group ι → option (P (free_group ι)))
-(inv : ∀ (x : free_group ι), x ∈ (set.univ : set (free_group ι)) →
-  ∃ (y : P (free_group ι)), y ∈ to_fun x → lhs r y = x)
-
-instance : has_coe_to_fun (solver r T) :=
-{ F := λ _, free_group ι → option (P (free_group ι)),
-  coe := solver.to_fun }
-
 lemma lhs_eq_of_mem {n : solver r T}
   {x : free_group ι} {y : P (free_group ι)}
   (h : y ∈ n x) : lhs r y = x := sorry
@@ -82,7 +72,7 @@ noncomputable def normalize_cons
   {A B : set (ι × C∞)}
   [decidable_pred A] [decidable_pred B]
   (hA : solver r' A) (hB : solver r' B) :
-  Π (old1 : free_group (ι × C∞))
+  Π (old1 : free_group (ι × C∞)) --contains no t
   (old2 : P (free_group (ι × C∞))),
   P (free_group (ι × C∞))
 | old1 ⟨w, ⟨[], _⟩⟩     := ⟨mul_free old1 w, old1⟩
@@ -90,51 +80,50 @@ noncomputable def normalize_cons
   if i.1.1 = t
   then if i.2 ≤ 1
     then option.elim (hA old1)
-      (normalize_cons ⟨old1.1 ++ [i], sorry⟩
-        ⟨(mul_free (of' i.1 i.2))⁻¹ w, ⟨l, sorry⟩⟩)
+      (inr old1 * ⟨w, ⟨i :: l, sorry⟩⟩)
       (λ a, inr (of (t, 1))⁻¹ *
         normalize_cons (mul_subscript (of_add 1) (right_hom a))
           ⟨mul_free (of (t, 1)) (mul_free a.right⁻¹ a.left * w),
-            of' i.1 (of_add 1 * i.2) * ⟨l, sorry⟩⟩)
+            of' (t, 1) (of_add 1 * i.2) * ⟨l, sorry⟩⟩)
     else option.elim (hB old1)
-      (normalize_cons ⟨old1.1 ++ [i], sorry⟩ ⟨(mul_free (of' i.1 i.2))⁻¹ w, ⟨l, sorry⟩⟩)
+      (inr old1 * ⟨w, ⟨i :: l, sorry⟩⟩)
       (λ a, inr (of (t, 1)) *
         normalize_cons (mul_subscript (of_add (-1)) (right_hom a))
           ⟨mul_free (of (t, 1))⁻¹ (mul_free a.right⁻¹ a.left * w), of' i.1 (of_add (-1) * i.2) *⟨l, sorry⟩⟩)
   else normalize_cons ⟨old1.1 ++ [i], sorry⟩ ⟨(mul_free (of' i.1 i.2))⁻¹ w, ⟨l, sorry⟩⟩
 using_well_founded { rel_tac := λ _ _, `[exact ⟨λ _ _, true, sorry⟩], dec_tac := `[trivial] }
 
-set_option timeout 1000000
-#check @subtype.ext
-@[simp] lemma remove_subscript_lhs_normalize_cons
-  (t : ι) (r' : free_group (ι × C∞))
-  {A B : set (ι × C∞)}
-  [decidable_pred A] [decidable_pred B]
-  (hA : solver r' A)
-  (hB : solver r' B) :
-  Π (old1 : free_group (ι × C∞))
-  (old2 : P (free_group (ι × C∞))),
-  remove_subscript t (lhs r' (normalize_cons t r' hA hB old1 old2)) =
-    remove_subscript t (old1 * lhs r' old2)
-| old1 ⟨w, ⟨[], _⟩⟩     := by rw normalize_cons; simp [inl_aut]
-| old1 ⟨w, ⟨i :: l, _⟩⟩ := begin
-  rw [normalize_cons],
-  split_ifs,
-  { cases h1 : hA old1,
-    { simp [remove_subscript_lhs_normalize_cons, inl_aut_inv, mul_assoc] },
-    { have : i.1.2 = of_add 1, from sorry,
-      simp [remove_subscript_lhs_normalize_cons, mul_assoc, inl_aut_inv,
-        lhs_inl_eq_of_mem _ _ h1, inl_aut, this, h, of_eq_of',
-        lhs_eq_of_mem _ _ h1], } },
-  { cases h2 : hB old1,
-    { simp [remove_subscript_lhs_normalize_cons, inl_aut_inv, mul_assoc] },
-    { have : i.1.2 = of_add 1, from sorry,
-      simp [remove_subscript_lhs_normalize_cons, mul_assoc, inl_aut_inv,
-        lhs_inl_eq_of_mem _ _ h2, inl_aut, this, h, of_eq_of',
-        lhs_eq_of_mem _ _ h2] } },
-  { simp [remove_subscript_lhs_normalize_cons, inl_aut_inv, mul_assoc] }
-end
-using_well_founded { rel_tac := λ _ _, `[exact ⟨λ _ _, true, sorry⟩], dec_tac := `[trivial] }
+set_option timeout 10000000
+
+-- @[simp] lemma remove_subscript_lhs_normalize_cons
+--   (t : ι) (r' : free_group (ι × C∞))
+--   {A B : set (ι × C∞)}
+--   [decidable_pred A] [decidable_pred B]
+--   (hA : solver r' A)
+--   (hB : solver r' B) :
+--   Π (old1 : free_group (ι × C∞))
+--   (old2 : P (free_group (ι × C∞))),
+--   remove_subscript t (lhs r' (normalize_cons t r' hA hB old1 old2)) =
+--     remove_subscript t (old1 * lhs r' old2)
+-- | old1 ⟨w, ⟨[], _⟩⟩     := by rw normalize_cons; simp [inl_aut]
+-- | old1 ⟨w, ⟨i :: l, _⟩⟩ := begin
+--   rw [normalize_cons],
+--   split_ifs,
+--   { cases h1 : hA old1,
+--     { simp [remove_subscript_lhs_normalize_cons, inl_aut_inv, mul_assoc] },
+--     { have : i.1.2 = of_add 1, from sorry,
+--       simp [remove_subscript_lhs_normalize_cons, mul_assoc, inl_aut_inv,
+--         lhs_inl_eq_of_mem _ _ h1, inl_aut, this, h, of_eq_of',
+--         lhs_eq_of_mem _ _ h1], } },
+--   { cases h2 : hB old1,
+--     { simp [remove_subscript_lhs_normalize_cons, inl_aut_inv, mul_assoc] },
+--     { have : i.1.2 = of_add 1, from sorry,
+--       simp [remove_subscript_lhs_normalize_cons, mul_assoc, inl_aut_inv,
+--         lhs_inl_eq_of_mem _ _ h2, inl_aut, this, h, of_eq_of',
+--         lhs_eq_of_mem _ _ h2] } },
+--   { simp [remove_subscript_lhs_normalize_cons, inl_aut_inv, mul_assoc] },
+-- end
+-- using_well_founded { rel_tac := λ _ _, `[exact ⟨λ _ _, true, sorry⟩], dec_tac := `[trivial] }
 
 noncomputable def normalize_with_subscript_aux
   (t : ι) (r' : free_group (ι × C∞))
@@ -156,42 +145,42 @@ noncomputable def normalize_with_subscript
   P (free_group (ι × C∞)) :=
 normalize_with_subscript_aux t r' hA hB w.1 w.2
 
-lemma remove_subscript_lhs_normalize_with_subscript_aux
-  (t : ι) (r' : free_group (ι × C∞))
-  {A B : set (ι × C∞)}
-  [decidable_pred A] [decidable_pred B]
-  (hA : solver r' A) (hB : solver r' B) :
-  Π (w : list (Σ i : ι, C∞)) (hw : coprod.pre.reduced w),
-  remove_subscript t (lhs r' (normalize_with_subscript_aux t r' hA hB w hw)) = ⟨w, hw⟩
-| []       _ := by simp [normalize_with_subscript_aux]
-| (i :: l) _ := begin
-  rw [normalize_with_subscript_aux, remove_subscript_lhs_normalize_cons,
-    monoid_hom.map_mul, remove_subscript_lhs_normalize_with_subscript_aux],
-  simp
-end
+-- lemma remove_subscript_lhs_normalize_with_subscript_aux
+--   (t : ι) (r' : free_group (ι × C∞))
+--   {A B : set (ι × C∞)}
+--   [decidable_pred A] [decidable_pred B]
+--   (hA : solver r' A) (hB : solver r' B) :
+--   Π (w : list (Σ i : ι, C∞)) (hw : coprod.pre.reduced w),
+--   remove_subscript t (lhs r' (normalize_with_subscript_aux t r' hA hB w hw)) = ⟨w, hw⟩
+-- | []       _ := by simp [normalize_with_subscript_aux]
+-- | (i :: l) _ := begin
+--   rw [normalize_with_subscript_aux, remove_subscript_lhs_normalize_cons,
+--     monoid_hom.map_mul, remove_subscript_lhs_normalize_with_subscript_aux],
+--   simp
+-- end
 
-@[simp] lemma remove_subscript_lhs_normalize_with_subscript
-  (t : ι) (r' : free_group (ι × C∞)) {A B : set (ι × C∞)}
-  [decidable_pred A] [decidable_pred B]
-  (hA : solver r' A) (hB : solver r' B) (w : free_group ι) :
-  remove_subscript t (lhs r' (normalize_with_subscript t r' hA hB w)) = w :=
-by cases w; apply remove_subscript_lhs_normalize_with_subscript_aux
+-- @[simp] lemma remove_subscript_lhs_normalize_with_subscript
+--   (t : ι) (r' : free_group (ι × C∞)) {A B : set (ι × C∞)}
+--   [decidable_pred A] [decidable_pred B]
+--   (hA : solver r' A) (hB : solver r' B) (w : free_group ι) :
+--   remove_subscript t (lhs r' (normalize_with_subscript t r' hA hB w)) = w :=
+-- by cases w; apply remove_subscript_lhs_normalize_with_subscript_aux
 
-def Icc_prod (x : ι) (a b : C∞) : set (ι × C∞) :=
-{ p | p.1 = x → a ≤ p.2 ∧ p.2 ≤ b }
-
-instance (x : ι) (a b : C∞) : decidable_pred (Icc_prod x a b) :=
-by dunfold Icc_prod; apply_instance
-
-/- need to cyclically reduce r' -/
-def normalize (t x : ι) (r' : free_group (ι × C∞))
-  (hx : x ∉ T) (ht : exp_sum t r = 1) (a b : C∞)
-  (ha : a ∈ finset.min ((vars r').image prod.snd))
-  (hb : b ∈ finset.max ((vars r').image prod.snd))
-  (hr' : r' = (add_subscript t r).left)
-  (hr'₁ : solver r' (Icc_prod x a (b * of_add (-1))))
-  (hr'₂ : solver r' (Icc_prod x (a * of_add 1) b)) (w : free_group ι) :
-  option (P (free_group ι)) :=
-let cyc_r := cyclically_reduce r in
-let w' := P.map (remove_subscript t) sorry (normalize_with_subscript t r' hr'₁ hr'₂ w) in
-if w'.right ∈ closure_var T then some w' else none
+-- def exp_sum_eq_zero (t x : ι)
+--   (hs : Π (r : free_group (ι × C∞)) (T : set (ι × C∞)) [decidable_pred T], solver r T)
+--   (cyc_r : free_group ι):
+--   solver cyc_r T := λ w,
+-- let (c₂, conj_r) := cyclically_conjugate x cyc_r in
+-- let r' := (add_subscript t conj_r).left in
+-- let (a, b) := min_max_subscript x r' in
+-- let p := normalize_with_subscript t r'
+--   (hs r' (Icc_prod x a (b * (of_add 1)⁻¹)))
+--   (hs r' (Icc_prod x (a * of_add 1) b))
+--   w in
+-- let T' : set (ι × C∞) :=
+--   if t ∈ T
+--     then { i : ι × C∞ | i.1 ∈ T }
+--     else { i : ι × C∞ | i.1 ∈ T ∧ i.2 = 1 } in
+-- let dT' : decidable_pred T' := by dsimp [T']; split_ifs; apply_instance in
+-- do np ← @hs r' T' dT' p.right,
+-- return (change_r (c₂⁻¹) (P.map (remove_subscript t) sorry (P.trans p np)))

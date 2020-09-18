@@ -10,7 +10,7 @@ notation `C∞` := multiplicative ℤ
 @[reducible] def free_group (ι : Type*) := coprod (λ i : ι, C∞)
 
 namespace free_group
-variables {ι : Type*} [decidable_eq ι] {M : Type*}
+variables {ι : Type*} [decidable_eq ι] {M : Type*} [monoid M] {G : Type*} [group G]
 variables {α : Type*} {β : Type*} {γ : Type*} [decidable_eq α] [decidable_eq β] [decidable_eq γ]
 
 open function coprod coprod.pre multiplicative
@@ -42,19 +42,19 @@ calc of' i n = gpowers_hom _ (of i) n : congr_fun (congr_arg _ (monoid_hom.ext_i
 
 lemma of_eq_of' (i : ι) : of i = of' i (of_add 1) := rfl
 
-def lift' [monoid M] (f : Π i : ι, C∞ →* M) : free_group ι →* M :=
+def lift' (f : Π i : ι, C∞ →* M) : free_group ι →* M :=
 coprod.lift f
 
-def lift [group M] (f : ι → M) : free_group ι →* M :=
+def lift (f : ι → G) : free_group ι →* G :=
 lift' (λ i, gpowers_hom _ (f i))
 
-@[simp] lemma lift'_of' [monoid M] (f : Π i : ι, C∞ →* M) (i : ι) (n : C∞) :
+@[simp] lemma lift'_of' (f : Π i : ι, C∞ →* M) (i : ι) (n : C∞) :
   lift' f (of' i n) = f i n := by simp [lift', of']
 
-@[simp] lemma lift_of [group M] (f : Π i : ι, M) (i : ι) :
+@[simp] lemma lift_of (f : Π i : ι, G) (i : ι) :
   lift f (of i) = f i := by simp [lift, of_eq_of', gpowers_hom]
 
-@[simp] lemma lift'_comp_of' [monoid M] (f : Π i : ι, C∞ →* M) (i : ι) :
+@[simp] lemma lift'_comp_of' (f : Π i : ι, C∞ →* M) (i : ι) :
   (lift' f).comp (of' i) = f i := by ext; simp
 
 @[elab_as_eliminator]
@@ -89,11 +89,39 @@ free_group.rec_on' g h1 (begin
 end)
 (λ i a h , hmul _ _)
 
-lemma hom_ext [monoid M] {f g : free_group ι →* M} (h : ∀ i, f (of i) = g (of i)) : f = g :=
+lemma hom_ext {f g : free_group ι →* M} (h : ∀ i, f (of i) = g (of i)) : f = g :=
 coprod.hom_ext (λ i, monoid_hom.ext_int (h i))
 
-lemma lift'_eq_lift [group M] (f : Π i : ι, C∞ →* M) : lift' f = lift (λ i, f i (of_add 1)) :=
+@[simp] lemma lift_of₂ : lift (of : ι → free_group ι) = monoid_hom.id _ :=
+free_group.hom_ext (by simp)
+
+lemma lift'_eq_lift (f : Π i : ι, C∞ →* G) : lift' f = lift (λ i, f i (of_add 1)) :=
 hom_ext (λ i, by rw [lift_of, of_eq_of', lift'_of'])
+
+section map
+
+variables {κ : Type*} [decidable_eq κ] (f : ι → κ)
+
+def map : free_group ι →* free_group κ := lift' (λ i, of' (f i))
+
+@[simp] lemma map_of (i : ι): map f (of i) = of (f i) := by simp [map, of_eq_of']
+
+@[simp] lemma map_of' (i : ι) (n : C∞) : map f (of' i n) = of' (f i) n :=
+by simp [map, of_eq_of']
+
+@[simp] lemma map_comp_of' (i : ι) : (map f).comp (of' i) = of' (f i) :=
+by simp [map, of_eq_of']
+
+lemma lift_comp_map (g : κ → G) : (lift g).comp (map f) = lift (λ x, g (f x)) :=
+hom_ext (by simp)
+
+lemma lift_map (g : κ → G) (w : free_group ι) : lift g (map f w) = lift (λ x, g (f x)) w :=
+by rw [← monoid_hom.comp_apply, lift_comp_map]
+
+@[simp] lemma map_id : map (λ x, x : ι → ι) = monoid_hom.id _ :=
+free_group.hom_ext (by simp [map, of_eq_of'])
+
+end map
 
 protected def embedding (e : α ↪ β) : free_group α →* free_group β :=
 { to_fun := λ x, ⟨pre.embedding e.1 (λ _, monoid_hom.id _) x.1,
