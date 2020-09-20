@@ -146,7 +146,7 @@
 \title{Group Representation Theory Coursework 1}
 
 \begin{document}
-\raggedright
+
 \section{The Proof Certificate}
 
 An element of a group $G$ is equal to one in the quotient by the normal closure
@@ -269,6 +269,16 @@ The HNN normalization process replaces any occurences of $ta$ with $\phi(a)t$ wh
 any occurance of $t^{-1}b$ with $\phi^{-1}(b)t^{-1}$ when $b \in B$. This produces a word of
 the form in Theorem \ref{britton}.
 
+\section{Base Case}
+
+The base case is the case where the relation $r$ is of the form $a^n$ with
+$n \in \mathbb{Z}$, and $a$ a letter in $S$. It is straightforward to decide
+the word problem in this group, since $F(S) / a^n$ is isomorphic
+to the binary coproduct of $F(S \backslash \{a\})$ and $\mathbb{Z}/n\mathbb{Z}$.
+However computing the appropriate proof term requires some explanation.
+
+To compute the proof term, t
+
 \section{HNN normalization}\label{HNNnorm}
 
 We first present a simplified version of the HNN normalization that does not compute
@@ -294,7 +304,7 @@ Then apply the HNN normalization procedure. For this particular HNN extension $\
 (Definition \ref{changesubscript}). For each occurence of
 $gt'^{-1}$, we can use \textit{Solve} to check whether $g$ is equal
 to a word  $a \in A$ in the quotient $F(S'') / r'$, and if it is equal to some word $a$, rewrite
-$gt'^{-1}$ to $t'\text{Changesubscript}(-1)(a)$. Similarly, For each occurence of $gt'$, use \textit{Solve}
+$gt'^{-1}$ to $t'^{-1}\text{Changesubscript}(-1)(a)$. Similarly, For each occurence of $gt'$, use \textit{Solve}
 to check whether $g$ is equal to a word $b \in B$ in the quotient $F(S'') / r'$, and if it it equal to
 some word $b$ rewrite $gt'$ to $t'\text{ChangeSubscript}(1)(b)$.
 
@@ -370,24 +380,39 @@ and not $P(F(S''))$, although $\textit{rhs}$ of every word computed
 will be in $F(S'')$.
 
 The procedure described in Section \ref{HNNnorm}
-replaced each occurence of $gt'^{-1}$ with $t'\text{ChangeSubscript}(-1)(a)$,
-where $a \in A$ was a word equal to $g \in F(S'')$ in the quotient
+replaced each occurence of $wt'^{-1}$ with \newline $t'^{-1}\text{ChangeSubscript}(-1)(a)$,
+where $a \in A$ was a word equal to $w \in F(S'')$ in the quotient
 $F(S'') / r'$.
 
 To compute the proof certificate suppose there is an occurence of $pt'^{-1}$ with
 $p \in P(F(S \times \mathbb{Z}))$. Use \textit{Solve} to check whether $\text{rhs}(p)$ is
 equal to a word $a \in A$. Suppose $q \in  P(F(S''))$ is the certificate
-of this congruence. Then substitute $gt'^{-1}$ with $t'\text{ConjP}(1, \text{Trans}(p, q))$.
+of this congruence. Then substitute $pt'^{-1}$ with $t'^{-1}\text{ConjP}(1, \text{Trans}(p, q))$.
 
 Similarly replace for every occurence of $pt'$, with $\text{rhs}(p)$ equal to some word $b \in B$,
-and $q$ a certificate of this congruence, replace $pt'$ with $t'^{-1}\text{ConjP}(-1, \text{Trans}(p, q))$.
+and $q$ a certificate of this congruence, replace $pt'$ with $t'\text{ConjP}(-1, \text{Trans}(p, q))$.
 
 \subsubsection{Proof Lengths}
 
 It is important to apply the rewriting procedure from left to right. This will usually
-produce shorter proof certificates. Consider normalizing $w v$ with $w, v \in F(S'')$.
-Supppose $v$ is normalized first to $v'$ and then $wv'$ is normalized all together.
+produce shorter proof certificates. Consider normalizing $t'^{-1}wt'vt'^{-1}$ with $w, v \in F(S'')$.
+Suppose we normalize right to left.
+$t'v$ is normalized to $pt'$ with $p \in P(F(S \times \mathbb{Z}))$.
+After that substitution the new word $t'^{-1}wp$, with $wp \in P(F(S \times \mathbb{Z}))$.
+Suppose $\text{rhs}(wp)$ is normalized to $q \in P(F(S \times \mathbb{Z}))$.
+Then the final normalized word is $\text{conjP}(1, \text{Trans (wp, q)})t'^{-1}$.
 
+The proof part of $\text{Trans}(wp, q)$ is $\text{MulFree}(w)(\text{Left}(p))\text{Left}(q)$.
+
+Normalizing the other way, we first normalize $t'^{-1}w$ to $p_2 t'^{-1}$ with
+$p_2 \in P(F(S \times \mathbb{Z}))$. Then the new word is $p_2vt^{-1}$. Suppose
+$\text{rhs} p_2 v$ is normalized to $q_2 \in P(F(S \times \mathbb{Z}))$.
+Then the final normalized word is $t'^{-1}\text{conjP}(-1, \text{Trans} (p_2v, q_2))$.
+
+The proof part of $\text{Trans} (p_2v, q)$ is $\text{Left}(p_2)\text{Left}(q)$. There is no
+use of \textit{MulFree} since $\text{Left}(v)=1$. On average using \textit{MulFree}
+will make words longer, and so the left to right normalization produces shorter proofs.
+The left to right normalization was found to produce shorter proofs in practice.
 
 
 

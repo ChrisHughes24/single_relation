@@ -2,6 +2,7 @@ import .exp_sum_eq_zero
 import .base_case
 import .choose_letters
 import .no_exp_sum_zero
+import number_theory.sum_two_squares
 import .golf
 
 open semidirect_product
