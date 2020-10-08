@@ -1,7 +1,7 @@
 import for_mathlib.coprod.free_group_subgroup
 import .functor
 import neat.cyclically_reduce
-import .initial
+import neat.initial
 import tactic
 
 noncomputable theory

@@ -1,6 +1,6 @@
 import .functor
 import .for_mathlib.coprod.free_group_subgroup
-import .initial
+import neat.initial
 import data.nat.digits
 /-!
 # The base case of the `group_thingy` tactic

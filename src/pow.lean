@@ -1,6 +1,6 @@
 import for_mathlib.coprod.free_group_subgroup
 import .functor
-import .initial
+import neat.initial
 
 variables {ι : Type} {M : ι → Type}
 variables [decidable_eq ι] [Π i, decidable_eq (M i)]
