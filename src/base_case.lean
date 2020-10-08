@@ -1,8 +1,8 @@
 import .functor
 import .for_mathlib.coprod.free_group_subgroup
 import .initial
+import data.nat.digits
 /-!
-
 # The base case of the `group_thingy` tactic
 
 ## Main definitions
@@ -73,6 +73,44 @@ It returns a normalized version `reverse l₁ * p`, reduced modulo `of' r₁ r�
           base_case_core l₁ (inl (of' (1 : free_group ι) q) * ⟨p, ⟨j::l₂, sorry⟩⟩)
         else base_case_core l₁ (inr (of' i.1 i.2) * ⟨p, ⟨j::l₂, sorry⟩⟩)
     else base_case_core l₁ (inr (of' i.1 i.2) * ⟨p, ⟨j::l₂, sorry⟩⟩)
+
+-- def normalize_single (r₁ : ι) (r₂ : C∞) (i : ι) (n : C∞) : P (free_group ι) :=
+-- if i = r₁ ∧ to_add r₂ ∣ to_add n
+--   then ⟨of' 1 (of_add (to_add n / to_add r₂)), 1⟩
+--   else ⟨1, of' i n⟩
+
+-- def mul_left (r₁ : ι) (r₂ : C∞) (i : ι) (n : C∞) :
+--   P (free_group ι) → P (free_group ι)
+-- | ⟨p, ⟨[], _⟩⟩ := normalize_single r₁ r₂ i n * inl p
+-- | ⟨p, ⟨(j::l), _⟩⟩ :=
+-- if i = j.1
+--   then _
+--   else _
+
+-- -- @[inline] def base_case_core₂ (r₁ : ι) (r₂ : C∞) : list (Σ i : ι, C∞) →
+-- --   P (free_group ι) → P (free_group ι)
+-- -- | []     p := p
+-- -- | (i::l₁)  ⟨p, ⟨[], _⟩⟩ :=
+-- --   if i.1 = r₁
+-- --     then if to_add r₂ ∣ i.2
+-- --       then let q := to_add i.2 / to_add r₂ in
+-- --         base_case_core l₁ (inl (of' (1 : free_group ι) q) * ⟨p, 1⟩)
+-- --       else base_case_core l₁ (inr (of' i.1 i.2) * ⟨p, 1⟩)
+-- --     else base_case_core l₁ (inr (of' i.1 i.2) * inl p)
+-- -- | (i::l₁) ⟨p, ⟨j::l₂, _⟩⟩ :=
+-- --   if i.1 = r₁
+-- --     then if j.1 = r₁
+-- --       then
+-- --         let x := to_add i.2 + to_add j.2 in
+-- --         if to_add r₂ ∣ x
+-- --         then base_case_core l₁ (inl (of' (1 : free_group ι) (of_add (to_add x / to_add r₂))) *
+-- --           inr (of' j.1 j.2⁻¹) * ⟨p, ⟨j::l₂, sorry⟩⟩)
+-- --         else base_case_core l₁ (inr (of' i.1 i.2) * ⟨p, ⟨j::l₂, sorry⟩⟩)
+-- --       else if to_add r₂ ∣ i.2
+-- --         then let q := to_add i.2 / to_add r₂ in
+-- --           base_case_core l₁ (inl (of' (1 : free_group ι) q) * ⟨p, ⟨j::l₂, sorry⟩⟩)
+-- --         else base_case_core l₁ (inr (of' i.1 i.2) * ⟨p, ⟨j::l₂, sorry⟩⟩)
+-- --     else base_case_core l₁ (inr (of' i.1 i.2) * ⟨p, ⟨j::l₂, sorry⟩⟩)
 
 /-- `base_case` reduces a word `w` in the `free_group ι` modulo `of' r₁ r₂` -/
 @[inline] def base_case (r₁ : ι) (r₂ : C∞) (w : free_group ι) : P (free_group ι) :=

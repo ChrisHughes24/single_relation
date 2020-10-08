@@ -787,7 +787,6 @@ if t = i.1
     else pow_proof_core l (w.1, i.2 * w.2)
   else pow_proof_core l (w.1 * of' i.1 i.2, w.2)
 
-
 def pow_proof (t : ι) (n : C∞) (l : list (Σ i : ι, C∞)) : free_group ι :=
 (pow_proof_core t n l 1).1
 

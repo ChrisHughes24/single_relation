@@ -2,7 +2,6 @@ import .exp_sum_eq_zero
 import .base_case
 import .choose_letters
 import .no_exp_sum_zero
-import number_theory.sum_two_squares
 import .golf
 
 open semidirect_product
@@ -49,14 +48,24 @@ open free_group
 ((main (of "a" * of "b" * (of "a")⁻¹ * (of "b")⁻¹) ∅
     (of "a" ^ 2 * (of "b") * (of "a")⁻¹ ^ 2 * (of "b")⁻¹)).iget)
 
-#eval let r := of 0 * of 1 * (of 0)⁻¹ * (of 1) in
+#eval let r := of 0 * of 1 * (of 0)^(-3 : ℤ) * (of 1)^4 in
   (main r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0) * r⁻¹ * (of 0)⁻¹ * r)).iget.left
+
+#eval let r := of 0 * of 1 * (of 0)^(-100 : ℤ) * (of 1)^4 in
+  free_group.map (golf_single r)
+    ((main r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r)).iget.left)
+
+#eval let r := of 0 * of 1 * (of 0)^(-100 : ℤ) * (of 1)^(4 : ℤ) in
+  (P.lhs r
+    ((main r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r)).iget) )
+  --(of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r) : bool)
+
 
 #eval let r := of 0 * of 1 * (of 0)⁻¹ * (of 1) in
   of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0) * r⁻¹ * (of 0)⁻¹ * r
 
-#eval let r := of 0 * of 1 * (of 0)⁻¹ * (of 1)⁻¹ in
-  (main r ∅ ((of 0 * of 1 * (of 0)⁻¹ * (of 1)⁻¹) ^ (3 : ℤ))).iget.left
+#eval let r := of 0 * of 1 * (of 0)⁻¹ * (of 1) in
+  (main r ∅ ((of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0) * r⁻¹ * (of 0)⁻¹ * r))).iget.left
 
 #eval let r := of 0 * of 1 * of 2 * of 3 in
   free_group.map (golf_single r)
