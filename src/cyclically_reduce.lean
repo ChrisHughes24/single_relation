@@ -1,4 +1,4 @@
-import for_mathlib.coprod.free_group
+import coprod.free_group
 import initial
 /-!
 # Cyclically reducing words
