@@ -1,4 +1,4 @@
-import for_mathlib.coprod.free_group
+import coprod.free_group
 import group_theory.semidirect_product
 /-!
 # Initial file for `group_thingy` tactic

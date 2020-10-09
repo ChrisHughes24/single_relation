@@ -1,5 +1,5 @@
 import group_theory.semidirect_product
-import for_mathlib.coprod.free_group
+import coprod.free_group
 /-!
 # The P functor
 
