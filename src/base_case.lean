@@ -1,5 +1,4 @@
 import P
-import coprod.free_group_subgroup
 import initial
 /-!
 # The base case of the `group_thingy` tactic
