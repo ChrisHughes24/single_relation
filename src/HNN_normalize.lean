@@ -1,4 +1,6 @@
-import .inductive_step_functor
+import initial
+import P
+import data.list.min_max
 /-!
 # HNN normalization for the group_thingy tactic
 
@@ -18,10 +20,29 @@ The representation is in reverse, i.e. the list `[(p, a), (q, b)]` represents
 the word `b * q * a * p` in the coproduct. The word returned will be reduced in the
 sense that the only occurence of `1` will be either `prod.fst` of the first
 element of the list, or `prod.snd` of the final element.
-
 -/
 
-variables {ι : Type} [decidable_eq ι]
+variables {ι : Type} [decidable_eq ι] (r : free_group ι) (T : set ι) [decidable_pred T]
+
+open free_group P semidirect_product multiplicative
+
+/-- `mul_subscript` is the action of `C∞` on `free_group (ι × C∞)`.
+  `mul_subscript n (of (i, m)) = of (i, n * m)` -/
+def mul_subscript : C∞ →* free_group (ι × C∞) ≃* free_group (ι × C∞) :=
+{ to_fun := λ n, free_group.equiv (equiv.prod_congr (equiv.refl _) (equiv.mul_left n)),
+  map_one' := mul_equiv.to_monoid_hom_injective (free_group.hom_ext (by simp)),
+  map_mul' := λ _ _, mul_equiv.to_monoid_hom_injective (free_group.hom_ext (by simp [mul_assoc])) }
+
+/-- `remove_subscript t (of (i, n)) = (of t)^n * of i * (of t)^(-n)` -/
+def remove_subscript (t : ι) : free_group (ι × C∞) →* free_group ι :=
+free_group.lift' (λ g, (mul_aut.conj (of' t g.2)).to_monoid_hom.comp (of' g.1))
+
+/-- `add_subscript t` is a one sided inverse to ``semidirect_product.inl ∘ remove_subscript t` -/
+def add_subscript (t : ι) : free_group ι →* free_group (ι × C∞) ⋊[mul_subscript] C∞ :=
+free_group.lift' (λ j,
+  if t = j
+  then semidirect_product.inr
+  else semidirect_product.inl.comp (of' (j, 1)))
 
 /-- `max_subscript x w`, returns the largest `k` such that
 the letter `(x, k)` appears in `w`, or `none` if there is no such occurence -/
@@ -34,17 +55,6 @@ the letter `(x, k)` appears in `w`, or `none` if there is no such occurence -/
 @[inline] def min_subscript (x : ι) (w : free_group (ι × C∞)) : option C∞ :=
 (w.to_list.filter_map
   (λ i : Σ i : ι × C∞, C∞, if i.1.1 = x then some i.1.2 else none)).minimum
-
-open free_group multiplicative semidirect_product
-
-def reduce_cons' : P (free_group (ι × C∞)) × C∞ →
-  list (P (free_group (ι × C∞)) × C∞) →
-  list (P (free_group (ι × C∞)) × C∞)
-| p [] := [p]
-| (p, n) ((q, m)::l) :=
-  if n = 1
-    then (p * q, m) :: l
-    else (p, n) :: (q, m) :: l
 
 /-- `Icc_prod x a b` is the set of pairs `(i, n)` such that if
   `i = x` then `a ≤ n ≤ b` -/
@@ -60,63 +70,6 @@ by dunfold Icc_prod; apply_instance
   is congruent to `t^k * remove_subscript t b * t^(-k)`  -/
 def conj_P (t : ι) (k : C∞) (p : P (free_group (ι × C∞))) : P (free_group (ι × C∞)) :=
 ⟨mul_free (of' (t, 1) k) p.left, mul_subscript k p.right⟩
-
-/-- `HNN_normalize_core` returns a normalized word in the `HNN` extension,  -/
-meta def HNN_normalize_core'
-  (t x : ι) (r' : free_group (ι × C∞)) (a b : C∞)
-  (hs : Π (r : free_group (ι × C∞)) (T : set (ι × C∞)) [decidable_pred T], solver r T) :
-  list (Σ i : ι, C∞) →
-  list (P (free_group (ι × C∞)) × C∞) →
-  list (P (free_group (ι × C∞)) × C∞)
-| []     p   := p
-| (i::l) [] :=
-  if i.1 = t
-    then HNN_normalize_core' l [(1, i.2)]
-    else HNN_normalize_core' l [(inr (⟨[⟨(i.1, 1), i.2⟩], sorry⟩ : free_group (ι × C∞)), 1)]
-| (i::l₁) ((p, n) :: l₂) :=
-  if i.1 = t
-    then if 1 ≤ i.2
-      then match hs r' (Icc_prod x a (b * (of_add 1)⁻¹)) p.right with
-        | none   := HNN_normalize_core' l₁ ((1, i.2) :: (p, n) :: l₂)
-        | some q :=
-          -- k is the maximum amount I can add to the subscripts and stay between a and b
-          let k : C∞ := match max_subscript x q.right with
-          | some k := min i.2 (b * k⁻¹)
-          | none   := i.2
-          end in
-          HNN_normalize_core'
-            (let m := i.2 * k⁻¹ in
-              if m = 1 then l₁ else ⟨t, m⟩ :: l₁)
-            (reduce_cons' (conj_P t k (P.trans p q), n * k) l₂)
-          -- HNN_normalize_core
-          --   (let m := i.2 * (of_add 1)⁻¹ in
-          --     if m = 1 then l₁ else ⟨t, m⟩ :: l₁)
-          --   (reduce_cons (P.change_r (of (t, 1)) (P.map
-          --       (@mul_subscript ι _ (of_add 1)).to_monoid_hom sorry
-          --         (P.trans p q)),
-          --     n * (of_add 1)) l₂)
-        end
-      else match hs r' (Icc_prod x (a * of_add 1) b) p.right with
-        | none   := HNN_normalize_core' l₁ ((1, i.2) :: (p, n) :: l₂)
-        | some q :=
-          -- k is the minimum amount I can add to the subscripts and stay between a and b
-          let k : C∞ := match min_subscript x q.right with
-          | some k := max i.2 (a * k⁻¹)
-          | none   := i.2
-          end in
-          HNN_normalize_core'
-            (let m := i.2 * k⁻¹ in
-              if m = 1 then l₁ else ⟨t, m⟩ :: l₁)
-            (reduce_cons' (conj_P t k (P.trans p q), n * k) l₂)
-          -- HNN_normalize_core
-          --   (let m := i.2 * (of_add 1) in
-          --     if m = 1 then l₁ else ⟨t, m⟩ :: l₁)
-          --   (reduce_cons (P.change_r (of (t, 1))⁻¹ (P.map
-          --       (@mul_subscript ι _ ((of_add 1)⁻¹)).to_monoid_hom sorry
-          --         (P.trans p q)),
-          --     n * (of_add 1)⁻¹) l₂)
-          end
-    else HNN_normalize_core' l₁ ((inr (of' (i.1, 1) i.2) * p, n) :: l₂)
 
 /-- `reduce_mul (p, n) l`, returns `l * n * p` if `l`is though
 of as an elemen of the binary coproduct of `P (free_group (ι × C∞))` and `C∞`. -/
@@ -185,22 +138,7 @@ in the coproduct. -/
             (let m := i.2 * k in
               if m = 1 then l₂ else ⟨t, m⟩ :: l₂)
           end
-    else HNN_normalize_core ((p * inr (of' (i.1, 1) i.2), n) :: l₁) l₂
-
-/-- Given a word `w` in `free_group ι`, `HNN_normalize` checks whether it
-can be written in the form `g * t^n`, with `g` a `t`-free word in the
-HNN extension. If it cannot be written in this form `HNN_normalize` returns `none`,
-if it can then `HNN_normalize` returns this pair, along with a proof. More precisely,
-it returns a pair `(p, n)` where `p` is a certificate that `w * t^(-n)` is equal
-to a `t`-free term.  -/
-meta def HNN_normalize' (t x : ι) (r' : free_group (ι × C∞)) (a b : C∞)
-  (hs : Π (r : free_group (ι × C∞)) (T : set (ι × C∞)) [decidable_pred T], solver r T)
-  (w : free_group ι) : option (P (free_group (ι × C∞)) × C∞) :=
-match HNN_normalize_core' t x r' a b hs w.to_list.reverse [] with
-| []        := some 1
-| [a]       := some a
-| (a::b::l) := none
-end
+    else HNN_normalize_core ((⟨p.left, p.right * of' (i.1, 1) i.2⟩, n) :: l₁) l₂
 
 /-- Given a word `w` in `free_group ι`, `HNN_normalize` checks whether it
 can be written in the form `t^n * g`, with `g` a `t`-free word in the

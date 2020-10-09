@@ -21,7 +21,7 @@ match r with
 | r := by exactI
   let vars_w := vars w in
   if vars_w.all (λ i, i ∈ T)
-    then some (inr w)
+    then (some (inr w))
     else let (c₁, cyc_r) := cyclically_reduce r in
       if (vars cyc_r).any (λ i, i ∉ vars_w ∧ i ∉ T)
       then none
@@ -30,7 +30,7 @@ match r with
         P.change_r c₁ <$>
           if α = 1
             then exp_sum_eq_zero T t x (λ r T _, by exactI main r T) cyc_r w
-            else exp_sum_ne_zero T t x α β (λ r T _, by exactI main r T) cyc_r w
+            else (exp_sum_ne_zero T t x α β (λ r T _, by exactI main r T) cyc_r w)
 end
 
 set_option profiler true
@@ -57,9 +57,13 @@ open free_group
 
 #eval let r := of 0 * of 1 * (of 0)^(-100 : ℤ) * (of 1)^(4 : ℤ) in
   (P.lhs r
-    ((main r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r)).iget) )
-  --(of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r) : bool)
+    (main r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r)).iget =
+  (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r) : bool)
 
+#eval let r := of 0 * of 1 * (of 0)^(-1 : ℤ) * (of 1)^(1 : ℤ) in
+  (P.lhs r
+    (main r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r)).iget =
+  (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r) : bool)
 
 #eval let r := of 0 * of 1 * (of 0)⁻¹ * (of 1) in
   of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0) * r⁻¹ * (of 0)⁻¹ * r

@@ -1,16 +1,18 @@
 import for_mathlib.coprod.free_group
-import neat.initial
+import initial
 /-!
 # Cyclically reducing words
-
+This file contains three functions `cyclically_reduce`, `cyclically_conjugate` and
+`min_max_subscript`
 -/
 variables {ι : Type} [decidable_eq ι]
 
 open free_group mul_aut multiplicative
 
-/-- given a word `r` returns a pair `(g, r')` such that `r'` is cyclically reduced
-  and `g * r * g⁻¹ = r'` -/
-meta def cyclically_reduce : free_group ι → free_group ι × free_group ι
+/-- Given a word `r` returns a pair `(g, r')` such that `r'` is cyclically reduced
+  and `g * r * g⁻¹ = r'`. Cyclically reduced means that if it contains more than
+  one distinct letter, then it starts and finishes with a different letter. -/
+@[inline] meta def cyclically_reduce : free_group ι → free_group ι × free_group ι
 | ⟨[], _⟩      := (1, 1)
 | ⟨[i], h⟩     := (1, ⟨[i], h⟩)
 | ⟨i::j::l, h⟩ :=
@@ -27,14 +29,15 @@ meta def cyclically_reduce : free_group ι → free_group ι × free_group ι
       (of' k.1 k.2, of_list (⟨k.1, z⟩ ::  (j :: l : list _).init))
   else (1, ⟨i::j::l, h⟩)
 
-/-- given a word `r` returns a pair `(g, r')` such that `r'` begins with `x`
+/-- Given a word `r` and a letter `x` returns a pair `(g, r')` such that `r'` begins with `x`
   and `g * r * g⁻¹ = r'`  -/
-meta def cyclically_conjugate (x : ι) (w : free_group ι) : free_group ι × free_group ι :=
+@[inline] meta def cyclically_conjugate (x : ι) (w : free_group ι) : free_group ι × free_group ι :=
 let n : ℕ := w.to_list.find_index (λ i, i.1 = x) in
 ⟨(of_list (w.to_list.take n))⁻¹, of_list (w.to_list.rotate n)⟩
 
-/-- `min_max_subscript x r` returns the minimum and  -/
-def min_max_subscript (x : ι) (r : free_group (ι × C∞)) : C∞ × C∞ :=
+/-- `min_max_subscript x r` returns the minimum and maximum `n` such that
+  `(x, n)` is a letter in `r`, assuming that `(x, 1)` is a letter in `r`.  -/
+@[inline] def min_max_subscript (x : ι) (r : free_group (ι × C∞)) : C∞ × C∞ :=
 r.to_list.foldl
   (λ minmax i,
     if i.1.1 = x

@@ -15,17 +15,13 @@ variables {H : Type} [group H] [decidable_eq H]
 
 open free_group semidirect_product function
 
-lemma to_monoid_hom_inj' {M N : Type*} [monoid M] [monoid N] :
-  function.injective (mul_equiv.to_monoid_hom : (M ≃* N) → (M →* N)) :=
-λ f g h, mul_equiv.ext (monoid_hom.ext_iff.1 h)
-
 /-- `mul_free` is the extension of the left regular action of `G` to an
   action of `G` on `free_group G` -/
 def mul_free : G →* mul_aut (free_group G) :=
 { to_fun := λ g, free_group.equiv (equiv.mul_left g),
-  map_mul' := λ _ _, to_monoid_hom_inj' $ free_group.hom_ext $
+  map_mul' := λ _ _, mul_equiv.to_monoid_hom_injective $ free_group.hom_ext $
     by simp [mul_aut.mul_def, equiv.perm.mul_def, mul_assoc],
-  map_one' := to_monoid_hom_inj' $ free_group.hom_ext $
+  map_one' := mul_equiv.to_monoid_hom_injective $ free_group.hom_ext $
     by simp [mul_aut.mul_def, equiv.perm.mul_def, mul_assoc] }
 
 @[simp] lemma mul_free_of' (g : G) (h : G) (n : C∞) :
