@@ -1,5 +1,5 @@
-import neat.P
-import neat.initial
+import P
+import initial
 /-!
 # Pow single pullback
 
