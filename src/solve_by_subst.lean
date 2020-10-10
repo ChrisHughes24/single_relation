@@ -7,7 +7,7 @@ This file handles the special case that their is a letter with exactly
 one occurence in the relation that does not occur in `T`.
 -/
 
-variables {ι : Type} [decidable_eq ι] (T : set ι) [decidable_pred T] [has_repr ι]
+variables {ι : Type} [decidable_eq ι] (T : set ι) [decidable_pred T]
 
 open multiplicative free_group semidirect_product
 
@@ -47,9 +47,9 @@ open multiplicative free_group semidirect_product
 @[inline] meta def subst_proof (r : free_group ι) : option (P (free_group ι) × ι) :=
 match check_subst T r with
 | []            := none
-| (⟨i, tt, w₁, w₂⟩ :: l) := trace (repr r) $
+| (⟨i, tt, w₁, w₂⟩ :: l) := trace (repr (r.to_list.length)) $
   some $ (⟨of (w₁⁻¹), w₁⁻¹ * w₂⁻¹⟩, i)
-| (⟨i, ff, w₁, w₂⟩ :: l) := trace (repr r) $
+| (⟨i, ff, w₁, w₂⟩ :: l) := trace (repr (r.to_list.length)) $
   some $ (⟨(of w₂)⁻¹, w₂ * w₁⟩, i)
 end
 
