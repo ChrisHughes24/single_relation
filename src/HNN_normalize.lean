@@ -106,7 +106,7 @@ in the coproduct. -/
 | [] (i::l) :=
   if i.1 = t
     then HNN_normalize_core [(1, i.2)] l
-    else HNN_normalize_core [(inr (⟨[⟨(i.1, 1), i.2⟩], sorry⟩ : free_group (ι × C∞)), 1)] l
+    else HNN_normalize_core [(inr (of_list [⟨(i.1, 1), i.2⟩]), 1)] l
 | ((p, n) :: l₁) (i::l₂) :=
   if i.1 = t
     then if 1 ≤ i.2
