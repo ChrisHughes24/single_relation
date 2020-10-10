@@ -47,9 +47,9 @@ open multiplicative free_group semidirect_product
 @[inline] meta def subst_proof (r : free_group ι) : option (P (free_group ι) × ι) :=
 match check_subst T r with
 | []            := none
-| (⟨i, tt, w₁, w₂⟩ :: l) := trace (repr (r.to_list.length)) $
+| (⟨i, tt, w₁, w₂⟩ :: l) :=
   some $ (⟨of (w₁⁻¹), w₁⁻¹ * w₂⁻¹⟩, i)
-| (⟨i, ff, w₁, w₂⟩ :: l) := trace (repr (r.to_list.length)) $
+| (⟨i, ff, w₁, w₂⟩ :: l) :=
   some $ (⟨(of w₂)⁻¹, w₂ * w₁⟩, i)
 end
 
