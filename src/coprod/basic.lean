@@ -1,4 +1,4 @@
-import .pre
+import coprod.pre
 
 variables {ι : Type*} (M : ι → Type*) {G : ι → Type*} {N : Type*}
 variables [Π i, monoid (M i)] [Π i, group (G i)] [monoid N]

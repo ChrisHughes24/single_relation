@@ -1,4 +1,4 @@
-import .basic
+import coprod.basic
 import data.int.basic
 import algebra.group_power
 import logic.embedding
