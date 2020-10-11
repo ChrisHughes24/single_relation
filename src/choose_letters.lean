@@ -10,7 +10,7 @@ used in the `group_thingy` tactic.
 -/
 open free_group multiplicative
 
-variables {ι : Type} [decidable_eq ι] [inhabited ι] (r : free_group ι)
+variables {ι : Type} [decidable_eq ι] (r : free_group ι)
 variables (T : set ι) [decidable_pred T]
 
 -- Want `x` to have least occurences in `w`

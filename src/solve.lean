@@ -12,10 +12,10 @@ variables {ι : Type} [decidable_eq ι] (T : set ι)
 -- Did I take into account the case when T is everything in r?
 -- This rarely happens right? Unless it happens at the start
 -- Proof assumes wlog every element of S appears in r, where is this used?
-meta def solve : Π ⦃ι : Type⦄ [decidable_eq ι] [inhabited ι]
+meta def solve : Π ⦃ι : Type⦄ [decidable_eq ι]
   (r : free_group ι) (T : set ι) [decidable_pred T],
   by exactI solver r T :=
-λ ι _ _ r T _ w,
+λ ι _ r T _ w,
 match r with
 | ⟨[], _⟩ := by exactI
   if mem_closure_var T w
