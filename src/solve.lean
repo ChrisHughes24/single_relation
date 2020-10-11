@@ -4,6 +4,7 @@ import choose_letters
 import no_exp_sum_zero
 import solve_by_trivial
 import solve_by_subst
+import no_letters
 
 open semidirect_product
 variables {ι : Type} [decidable_eq ι] (T : set ι)
@@ -31,10 +32,13 @@ match r with
     -- a lot faster in some cases faster
   if (vars (trace (repr $ cyc_r.to_list.length) cyc_r)).any (λ i, i ∉ vars_w ∧ i ∉ T)
     then none -- heuristic; algorithm is still complete without this line and above line
-    else let ((t, α), (x, β)) := choose_t_and_x cyc_r T in
-      if α = 1
-        then exp_sum_eq_zero T t x     (λ r T _, by exactI solve r T) cyc_r w
-        else exp_sum_ne_zero T t x α β (λ r T _, by exactI solve r T) cyc_r w
+    else match choose_t_and_x cyc_r T with
+      | none := no_letters T r (by exactI solve r ∅) w
+      | some ((t, α), (x, β)) :=
+        if α = 1
+          then exp_sum_eq_zero T t x     (λ r T _, by exactI solve r T) cyc_r w
+          else exp_sum_ne_zero T t x α β (λ r T _, by exactI solve r T) cyc_r w
+      end
 end
 
 set_option profiler true
@@ -64,6 +68,12 @@ open multiplicative
 #eval let r := of 0 * of 1 * (of 0)^(-3 : ℤ) * (of 1)^4 in
   (solve r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0) * r⁻¹ * (of 0)⁻¹ * r)).iget.left
 
+#eval let r := of 0 * of 1 * (of 0)^(-1 : ℤ) * (of 1)^2 in
+  let w := (of 2 * r * (of 2)⁻¹ * of 1 * r *
+      (of 1)⁻¹ * r⁻¹ * (of 0) * r⁻¹ * (of 0)⁻¹ * r * of 2 * r * (of 2)⁻¹) in
+  ((solve r {x | x ≠ 2} w).iget.left)
+
+-- #eval solve (of 0 * of 1) (of 0 * of 1 * )
 
 
 #eval let r := of 0 * of 1 * (of 0)^(-100 : ℤ) * (of 1)^(4 : ℤ) in
