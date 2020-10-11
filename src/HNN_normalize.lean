@@ -15,7 +15,7 @@ in this file used outside of this file.
 ## Implementation notes
 
 Both `HNN_normalize_core` and `reduce_mul` use an ad-hoc implementation of the
-binary coproduct of `P (free_group (ι × C∞))` and `C∞`.
+binary coproduct of `P (free_group (ι × C∞))` and `C∞` as a `list (P (free_group (ι × C∞)) × C∞)`.
 The representation is in reverse, i.e. the list `[(p, a), (q, b)]` represents
 the word `b * q * a * p` in the coproduct. The word returned will be reduced in the
 sense that the only occurence of `1` will be either `prod.fst` of the first

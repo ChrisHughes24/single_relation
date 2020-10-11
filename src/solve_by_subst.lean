@@ -6,7 +6,6 @@ import initial
 This file handles the special case that there is a letter with exactly
 one occurence in the relation that does not occur in `T`.
 -/
-
 variables {ι : Type} [decidable_eq ι] (T : set ι) [decidable_pred T]
 
 open multiplicative free_group semidirect_product
