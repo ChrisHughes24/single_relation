@@ -36,12 +36,9 @@ If `t ∈ T`, then `x` is chosen to not be in `T`, if `t ∉ T` then any `x ≠ 
 If there is no `t` with exponent sum zero, then `x` is chosen first such that `x ∉ T`.
 Then `t` is chosen such that `t ≠ x`.
 
-Within the conditions defined above `t` is chosen with the least absolute
-value of exponent sum and then the most occurences when there are two letters with
-the same exponent sum.
-
-`x` is always chosen to have the least occurences.
- -/
+Within the conditions defined above `t` is chosen with the most occurences
+and `x` is chosen with the least occurences.
+-/
 def choose_t_and_x : option $
   (ι × C∞) × -- t and its exponent sum
   (ι × C∞)   -- x and its exponent sum.
@@ -57,13 +54,8 @@ if t.2.1 = 1
     else do x ←
       ((l.filter (λ p : ι × C∞ × ℕ, p.1 ≠ t.1)).argmin (λ i : ι × (C∞ × ℕ), i.2.2)),
         return ((t.1, 1), (x.1, x.2.1))
-  else if t.1 ∈ T
-    then do x ←
-      ((l.filter (λ p : ι × C∞ × ℕ, p.1 ∉ T)).argmin (λ i : ι × (C∞ × ℕ), i.2.2)),
-        return ((t.1, t.2.1), (x.1, x.2.1))
-    else
-      do x ← ((l.filter (λ p : ι × C∞ × ℕ, p.1 ∉ T)).argmin (λ i : ι × (C∞ × ℕ), i.2.2)),
-         t' ← ((l.filter (λ p : ι × C∞ × ℕ, p.1 ≠ x.1)).argmin
-          (λ i : ι × (C∞ × ℕ), show lex ℕ (order_dual ℕ),
-            from ((to_add i.2.1).nat_abs, i.2.2))),
+  else do x ← ((l.filter (λ p : ι × C∞ × ℕ, p.1 ∉ T)).argmin (λ i : ι × (C∞ × ℕ), i.2.2)),
+            return ((t.1, t.2.1), (x.1, x.2.1)),
+          t' ← ((l.filter (λ p : ι × C∞ × ℕ, p.1 ≠ x.1)).argmax
+            (λ i : ι × (C∞ × ℕ), i.2.2)),
       return ((t'.1, t'.2.1), (x.1, x.2.1))
