@@ -27,9 +27,10 @@ match r with
   solve_by_trivial T w vars_w <|> -- heuristic; algorithm is still complete without this line
   let (c₁, cyc_r) := cyclically_reduce r in
   P.change_r c₁ <$>
-  -- solve_by_subst T cyc_r w <|> -- heuristic; algorithm is still complete without this line
+    -- heuristic; algorithm is still complete without this line below
     -- solve_by_subst seems to usually make it slower, but maybe worth doing anyway if it is
-    -- a lot faster in some cases faster
+    -- a lot faster in some cases
+  solve_by_subst T cyc_r w <|>
   if (vars (trace (repr $ cyc_r.to_list.length) cyc_r)).any (λ i, i ∉ vars_w ∧ i ∉ T)
     then none -- heuristic; algorithm is still complete without this line and above line
     else match choose_t_and_x cyc_r T with
@@ -44,15 +45,6 @@ end
 set_option profiler true
 
 open free_group
-
-#eval let r := of 0 * of 1 * (of 0)^(-4 : ℤ) * (of 1)^4 in
-    ((solve r ∅ r).iget.left)
-
-#eval let r := of 0 * of 1 * (of 0)^(-4 : ℤ) * (of 1)^4 in
-  choose_t_and_x r ∅ -- ((1, 5), (0, -3))
-open multiplicative
-#eval let r := of 0 * of 1 * (of 0)^(-4 : ℤ) * (of 1)^4 in
-  (add_subscript 1 (psi 1 0 (of_add 5) (of_add (-3)) r)).left
 
 #eval ((solve (of 0 * of 1) ∅
             (of 0 * (of 1) * (of 0)⁻¹ * (of 1)⁻¹)).is_some)
@@ -102,7 +94,7 @@ def w : ℕ → free_group char
 --#print string.decidable_eq
 #eval --free_group.map (golf_single (w 1 * (of 'a') ^ (-2 : ℤ)))
 
-  (solve (w 1 * (of 'a') ^ (-2 : ℤ)) {'a'} (w 4)).iget
+  (solve (w 1 * (of 'a') ^ (-2 : ℤ)) {'a'} (w 3)).iget
 
 -- #eval
 -- let r := (of 'a' * of 'b')^2 in
