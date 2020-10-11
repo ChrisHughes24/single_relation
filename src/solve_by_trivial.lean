@@ -12,6 +12,4 @@ open semidirect_product
 def solve_by_trivial  {ι : Type} [decidable_eq ι] (T : set ι)
   [decidable_pred T] (w : free_group ι) (vars_w : list ι) :
   option (P (free_group ι)) :=
-if vars_w.all (∈ T)
-  then some (inr w)
-  else none
+guard (vars_w.all (∈ T)) >> return (inr w)

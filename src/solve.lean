@@ -17,13 +17,10 @@ meta def solve : Π ⦃ι : Type⦄ [decidable_eq ι]
   by exactI solver r T :=
 λ ι _ r T _ w,
 match r with
-| ⟨[], _⟩ := by exactI
-  if mem_closure_var T w
-  then some (inr w)
-  else none
+| ⟨[], _⟩ := by exactI guard (mem_closure_var T w) >> some (inr w)
 | ⟨[⟨r₁, r₂⟩], _⟩ := by exactI base_case_solver T r₁ r₂ w
 | r := by exactI
-  let vars_w := vars w in
+  do let vars_w := vars w in
   solve_by_trivial T w vars_w <|> -- heuristic; algorithm is still complete without this line
   let (c₁, cyc_r) := cyclically_reduce r in
   P.change_r c₁ <$>
@@ -31,9 +28,9 @@ match r with
     -- solve_by_subst seems to usually make it slower, but maybe worth doing anyway if it is
     -- a lot faster in some cases
   solve_by_subst T cyc_r w <|>
-  if (vars (trace (repr $ cyc_r.to_list.length) cyc_r)).any (λ i, i ∉ vars_w ∧ i ∉ T)
-    then none -- heuristic; algorithm is still complete without this line and above line
-    else match choose_t_and_x cyc_r T with
+  guard ((vars cyc_r).all (λ i, i ∈ vars_w ∨ i ∈ T)) >>
+    -- heuristic; algorithm is still complete wihout above line
+    match choose_t_and_x cyc_r T with
       | none := no_letters T r (by exactI solve r ∅) w
       | some ((t, α), (x, β)) :=
         if α = 1

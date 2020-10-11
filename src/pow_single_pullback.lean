@@ -47,9 +47,8 @@ if t = i.1
 | (i::l)  :=
 do ⟨l', _⟩ ← pow_single_inverse_aux l,
 if i.1 = t
-  then if to_add n ∣ i.2
-    then return (of_list $ ⟨i.1, of_add $ to_add i.2 / to_add n⟩ :: l')
-    else none
+  then guard (to_add n ∣ i.2) >>
+    return (of_list $ ⟨i.1, of_add $ to_add i.2 / to_add n⟩ :: l')
   else of_list $ i :: l'
 
 /-- `pow_single_inverse t n` is the partial inverse to `pow_single t n` -/

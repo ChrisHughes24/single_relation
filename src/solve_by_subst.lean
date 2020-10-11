@@ -62,6 +62,4 @@ a word not containing that letter. It fails when there is no such letter.  -/
       (λ j, if j = i
         then gpowers_hom _ p
         else inr.comp (of' j)) w in
-  if mem_closure_var T p'.right
-    then some p'
-    else none
+  guard (mem_closure_var T p'.right) >> return p'

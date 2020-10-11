@@ -30,7 +30,7 @@ if t ∈ T
   -- case t ∉ T
   else
     -- Kind of silly. Could check if n = 1 before normalization.
-    if n ≠ 1 then none
-      else let T' : set (ι × C∞) := { i : ι × C∞ | i.1 ∈ T ∧ i.2 = 1 } in
+    guard (n = 1) >>
+      let T' : set (ι × C∞) := { i : ι × C∞ | i.1 ∈ T ∧ i.2 = 1 } in
         do np ← hs r' T' p.right,
         return (change_r c₂ (P.map (remove_subscript t) undefined (P.trans p np)))

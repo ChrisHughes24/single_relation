@@ -60,6 +60,4 @@ meta def no_letters : solver r T :=
 λ w, let p : P (free_group ι) :=
   (no_letters_core T r hs w.to_list []).foldl
     (λ x y, inr y.2 * y.1 * x) 1 in
-if mem_closure_var T p.right
-  then some p
-  else none
+guard (mem_closure_var T p.right) >> return p

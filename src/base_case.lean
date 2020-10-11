@@ -50,6 +50,4 @@ a normalized word in `T` when possible, and `none` otherwise -/
   solver (of' r₁ r₂) T :=
 λ w,
 let p := base_case r₁ r₂ w in
-if mem_closure_var T p.right
-  then some p
-  else none
+guard (mem_closure_var T p.right) >> return p
