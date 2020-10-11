@@ -3,7 +3,7 @@ import coprod.free_group
 import initial
 /-!
 # Solve by substitution
-This file handles the special case that their is a letter with exactly
+This file handles the special case that there is a letter with exactly
 one occurence in the relation that does not occur in `T`.
 -/
 
