@@ -71,8 +71,8 @@ by dunfold Icc_prod; apply_instance
 def conj_P (t : ι) (k : C∞) (p : P (free_group (ι × C∞))) : P (free_group (ι × C∞)) :=
 ⟨mul_free (of' (t, 1) k) p.left, mul_subscript k p.right⟩
 
-/-- `reduce_mul (p, n) l`, returns `l * n * p` if `l`is though
-of as an elemen of the binary coproduct of `P (free_group (ι × C∞))` and `C∞`. -/
+/-- `reduce_mul (p, n) l`, returns `l * n * p` if `l`is thought
+of as an element of the binary coproduct of `P (free_group (ι × C∞))` and `C∞`. -/
 def reduce_mul : P (free_group (ι × C∞)) × C∞ →
   list (P (free_group (ι × C∞)) × C∞) →
   list (P (free_group (ι × C∞)) × C∞)
@@ -146,7 +146,7 @@ HNN extension. If it cannot be written in this form `HNN_normalize` returns `non
 if it can then `HNN_normalize` returns this pair, along with a proof. More precisely,
 it returns a pair `(p, n)` where `p` is a certificate that `t^(-n) * w` is equal
 to a `t`-free term.  -/
-meta def HNN_normalize (t x : ι) (r' : free_group (ι × C∞)) (a b : C∞)
+@[inline] meta def HNN_normalize (t x : ι) (r' : free_group (ι × C∞)) (a b : C∞)
   (hs : Π (r : free_group (ι × C∞)) (T : set (ι × C∞)) [decidable_pred T], solver r T)
   (w : free_group ι) : option (P (free_group (ι × C∞)) × C∞) :=
 match HNN_normalize_core t x r' a b hs [] w.to_list with
