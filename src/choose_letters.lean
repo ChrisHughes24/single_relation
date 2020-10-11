@@ -42,30 +42,28 @@ the same exponent sum.
 
 `x` is always chosen to have the least occurences.
  -/
-def choose_t_and_x :
+def choose_t_and_x : option $
   (ι × C∞) × -- t and its exponent sum
   (ι × C∞)   -- x and its exponent sum.
   :=
 let l := (vars r).map (λ i, (i, exp_sum_and_occs r i)) in
-let t := (l.argmin (λ i : ι × (C∞ × ℕ), show lex ℕ (order_dual ℕ),
-  from ((to_add i.2.1).nat_abs, i.2.2))).iget in
+do t ← l.argmin (λ i : ι × (C∞ × ℕ), show lex ℕ (order_dual ℕ),
+  from ((to_add i.2.1).nat_abs, i.2.2)),
 if t.2.1 = 1
   then if t.1 ∈ T
-    then let x :=
-      ((l.filter (λ p : ι × C∞ × ℕ, p.1 ∉ T)).argmin (λ i : ι × (C∞ × ℕ), i.2.2)).iget in
-        ((t.1, 1), (x.1, x.2.1))
-    else let x :=
-      ((l.filter (λ p : ι × C∞ × ℕ, p.1 ≠ t.1)).argmin (λ i : ι × (C∞ × ℕ), i.2.2)).iget in
-        ((t.1, 1), (x.1, x.2.1))
+    then do x ←
+      ((l.filter (λ p : ι × C∞ × ℕ, p.1 ∉ T)).argmin (λ i : ι × (C∞ × ℕ), i.2.2)),
+        return ((t.1, 1), (x.1, x.2.1))
+    else do x ←
+      ((l.filter (λ p : ι × C∞ × ℕ, p.1 ≠ t.1)).argmin (λ i : ι × (C∞ × ℕ), i.2.2)),
+        return ((t.1, 1), (x.1, x.2.1))
   else if t.1 ∈ T
-    then let x :=
-      ((l.filter (λ p : ι × C∞ × ℕ, p.1 ∉ T)).argmin (λ i : ι × (C∞ × ℕ), i.2.2)).iget in
-        ((t.1, t.2.1), (x.1, x.2.1))
+    then do x ←
+      ((l.filter (λ p : ι × C∞ × ℕ, p.1 ∉ T)).argmin (λ i : ι × (C∞ × ℕ), i.2.2)),
+        return ((t.1, t.2.1), (x.1, x.2.1))
     else
-      let x :=
-        ((l.filter (λ p : ι × C∞ × ℕ, p.1 ∉ T)).argmin (λ i : ι × (C∞ × ℕ), i.2.2)).iget in
-      let t' :=
-        ((l.filter (λ p : ι × C∞ × ℕ, p.1 ≠ x.1)).argmin
+      do x ← ((l.filter (λ p : ι × C∞ × ℕ, p.1 ∉ T)).argmin (λ i : ι × (C∞ × ℕ), i.2.2)),
+         t' ← ((l.filter (λ p : ι × C∞ × ℕ, p.1 ≠ x.1)).argmin
           (λ i : ι × (C∞ × ℕ), show lex ℕ (order_dual ℕ),
-            from ((to_add i.2.1).nat_abs, i.2.2))).iget in
-      ((t'.1, t'.2.1), (x.1, x.2.1))
+            from ((to_add i.2.1).nat_abs, i.2.2))),
+      return ((t'.1, t'.2.1), (x.1, x.2.1))
