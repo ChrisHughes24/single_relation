@@ -26,10 +26,14 @@ open multiplicative free_group semidirect_product
       else if a = of_add 1
         then check_subst_core w₁ (⟨i, a⟩::w₂)
           ((i, tt, of_list w₁.reverse, of_list w₂) :: l₁)
-          (i :: l₂)
-        else check_subst_core w₁ (⟨i, a⟩::w₂)
-          ((i, ff, of_list w₁.reverse, of_list w₂) :: l₁)
           (i::l₂)
+        else if a = of_add (-1)
+          then check_subst_core w₁ (⟨i, a⟩::w₂)
+            ((i, ff, of_list w₁.reverse, of_list w₂) :: l₁)
+            (i::l₂)
+          else check_subst_core w₁ (⟨i, a⟩::w₂)
+            l₁
+            (i::l₂)
 
 /-- `check_subst T r` returns a list containing the letters that occur exactly once in `r`,
   and do not occur in `T`.
