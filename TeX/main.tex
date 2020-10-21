@@ -149,7 +149,16 @@
 
 \section{Free Group}
 
-Given a set $S$ the free group over $S$, $F(S)$
+The free group is implemented in Lean as the set of reduced words. An element of
+the free group over a type $\iota$ of letters is a list of pairs $\iota \times \mathbb{Z}$.
+A list is reduced the integer part of every element of the list is non zero, and
+no two adjacent elements of the list have the same letter. The free group is the set of
+reduced lists.
+
+Multiplication of elements of the free group is implemented by appending the lists,
+whilst replacing any adjacent occurrences of $(i, m)$ and $(i, n)$ with $(i, m + n)$, and removing
+any occurence of $(i,0)$. Inversion is given by reversing the list and negating
+the integer part of every pair. The identity is given by the empty list.
 
 \section{The Proof Certificate}
 
