@@ -441,9 +441,6 @@ lemma mul_aux'_single : Π (l₁ l₂ : list (Σ i, M i)) (i : Σ i, M i),
 | (⟨j, b⟩::l₁) (⟨k, c⟩::l₂) ⟨i, a⟩ :=
   list.reverse_rec_on l₂
     begin
-      simp [eq_comm],
-      split_ifs,
-      { simp, }
 
     end
     (begin

@@ -21,12 +21,15 @@ variables {ι : Type} [decidable_eq ι] (T : set ι) [decidable_pred T]
 let (c₂, conj_r) := cyclically_conjugate x cyc_r in
 let r' := (add_subscript t conj_r).left in
 let (a, b) := min_max_subscript x r' in
-do (p, n) ← HNN_normalize t x r' a b hs w,
+do (n, p) ← HNN_normalize' t x r' a b hs w,
 if t ∈ T
   then let T' : set (ι × C∞) := { i : ι × C∞ | i.1 ∈ T } in
     do np ← hs r' T' p.right,
     return (change_r c₂
-      (inr (of' t n) * P.map (remove_subscript t) undefined (P.trans p np)))
+      --(inr (of' t n) * P.map (remove_subscript t) undefined (P.trans p np)))
+        --The line for HNN_normalize
+      (P.map (remove_subscript t) undefined (P.trans p np)) * inr (of' t n))
+        --The line for HNN_normalize'
   -- case t ∉ T
   else
     -- Kind of silly. Could check if n = 1 before normalization.

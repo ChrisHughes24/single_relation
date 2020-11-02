@@ -1,5 +1,6 @@
 import P
 import initial
+import choose_letters
 /-!
 # Pow single pullback
 
@@ -40,7 +41,25 @@ if t = i.1
   free_group ι :=
 (pow_single_proof_pullback_core t n w.to_list 1).1
 
-/-- Auxiliary definition used to deifne `powsingle_inverse` -/
+/-- Auxiliary definition used for `pow_single_pullback'`. -/
+@[inline] def pow_single_proof_pullback_core' (t : ι) (n : C∞) :
+  Π (l : list (Σ i : ι, C∞)), free_group ι → free_group ι
+| []     w := w
+| (i::l) w :=
+if t = i.1
+  then if n.to_add ∣ to_add i.2
+    then pow_single_proof_pullback_core' l
+      (w * of' t (of_add (to_add i.2 / n.to_add)))
+    else pow_single_proof_pullback_core' l w
+  else pow_single_proof_pullback_core' l (w * of' i.1 i.2)
+
+/-- Alternate simpler version of `pow_single_proof_pullback'`. Works in practice,
+but may not work in general. -/
+@[inline] def pow_single_proof_pullback' (t : ι) (n : C∞) (w : free_group ι) :
+  free_group ι :=
+(pow_single_proof_pullback_core' t n w.to_list 1)
+
+/-- Auxiliary definition used to deifne `pow_single_inverse` -/
 @[inline] meta def pow_single_inverse_aux (t : ι) (n : C∞) :
   list (Σ i : ι, C∞) → option (free_group ι)
 | []    := some (of_list [])
@@ -62,5 +81,7 @@ pow_single_inverse_aux t n w.to_list
   `lhs r (pow_single_pullback t n p) = a` and `right (pow_single_pullback t n p) = b` -/
 @[inline] meta def pow_single_pullback (t : ι) (n : C∞) (p : P (free_group ι)) :
   option (P (free_group ι)) :=
-(pow_single_inverse t n p.2).map
-  (λ w, ⟨map (pow_single_proof_pullback t n) p.left, w⟩)
+-- trace (repr ((vars p.left).all (λ x : free_group ι, x.to_list.all (λ i : Σ i : ι, C∞,
+--   (i.1 = t → to_add n ∣ to_add i.2 : bool)))))
+((pow_single_inverse t n p.2).map
+  (λ w, ⟨map (pow_single_proof_pullback t n) p.left, w⟩))

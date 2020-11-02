@@ -8,7 +8,6 @@ import golf
 
 open semidirect_product
 
--- Fix this. Did not consider case when `cyc_r` has length 1 but not `r`.
 meta def solve : Π ⦃ι : Type⦄ [decidable_eq ι]
   (r : free_group ι) (T : set ι) [decidable_pred T],
   by exactI solver r T :=
@@ -48,14 +47,16 @@ set_option profiler true
 variables {ι : Type} [decidable_eq ι] [has_lt ι] [decidable_rel ((<) : ι → ι → Prop)] (T : set ι)
 
 meta def test (r : free_group ι) (T : set ι) [decidable_pred T] (w : free_group ι) : bool :=
-let p := golf_solve r T w in
-∃ h : p.is_some,
-  let p' := option.get h in
-  P.lhs r p' = w ∧ mem_closure_var T p'.right
+match golf_solve r T w with
+| some p' := P.lhs r p' = w ∧ mem_closure_var T p'.right
+| none := ff
+end
 
 open free_group
 
 #eval test (of 0 * of 1 * (of 0)⁻¹) ∅ (of 0 * of 1 * (of 0)⁻¹)
+
+--#eval solve (of 0 ^ 88 * of 1 ^ 88) {1} (of 0 * of 1 * (of 0)⁻¹)
 
 #eval test (of 0 * of 1) ∅ (of 0 * (of 1) * (of 0)⁻¹ * (of 1)⁻¹)
 -- #eval ((solve (of 0 * of 1) ∅
@@ -83,20 +84,19 @@ open free_group
     * r⁻¹ * (of 0)⁻¹ * r))
 
 #eval let r := of 0 * of 1 * (of 0)^(-5 : ℤ) * (of 1)^4 in
-(of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)
-    * r⁻¹ * (of 0)⁻¹ * r)
+(of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0) * r⁻¹ * (of 0)⁻¹ * r)
+#print P.change_r
+#eval let r := of 0 * of 1 * (of 0)^(-11 : ℤ) * (of 1)^4 in
+  (solve r ∅ (of 0 ^ 10 * of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)
+    * r⁻¹ * (of 0)⁻¹ * r * of 0 ^ (-10 : ℤ))).iget.left.to_list.length
 
--- #eval let r := of 0 * of 1 * (of 0)^(-11 : ℤ) * (of 1)^4 in
---   (golf_solve r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)
---     * r⁻¹ * (of 0)⁻¹ * r)).iget.left.to_list.length
-
--- #eval let r := of 0 * of 1 * (of 0)^(-9 : ℤ) * (of 1)^6 in
---   (golf_solve r {0} (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)
---     * r⁻¹ * (of 0)⁻¹ * r)).iget.left.to_list.length
-
-#eval let r := of 0 * of 1 * (of 0)^(4 : ℤ) * (of 1)^3 in
-  (golf_solve r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)
+#eval let r := of 0 * of 1 * (of 0)^(-9 : ℤ) * (of 1)^6 in
+  (solve r {0} (of 0 ^ 4 * of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)
     * r⁻¹ * (of 0)⁻¹ * r)).iget.left.to_list.length
+
+#eval let r := of 0 * of 1 * (of 0)^(-17 : ℤ) * (of 1)^5 in
+  (test r ∅ ((of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)
+    * r⁻¹ * (of 0)⁻¹ * r))⁻¹)
 
 #eval let r := of 0 * of 1 * (of 0)^(-1 : ℤ) * (of 1)^1 in
   let w := (of 2 * r * (of 2)⁻¹ * of 1 * r *
@@ -107,52 +107,50 @@ open free_group
 
 
 #eval let r := (of 0)^1 * of 1 * (of 0)^(-2 : ℤ) * (of 1)^(-1 : ℤ) in
-  (solve r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r)).iget.left.to_list.length
+  (test r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r))
   -- (P.lhs r
   --   (solve r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r)).iget =
   -- (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r) : bool)
 
 #eval let r := (of 'a') ^ (-2 : ℤ) in
-  test r ∅ ((of 'a') ^ 22)
+test r ∅ ((of 'a') ^ 22)
 
 #eval let r := (of 'a') ^ (-2 : ℤ) in
-  test r {'b'} ((of 'a') ^ 22 * of 'b' * of 'a' ^ (-10 : ℤ) * (of 'b'))
+test r {'b'} ((of 'a') ^ 22 * of 'b' * of 'a' ^ (-10 : ℤ) * (of 'b'))
 
 #eval let r := (1 : free_group ℕ) in test r {0} 1
 
 #eval let r := (1 : free_group ℕ) in test r ∅ 1
 
 #eval let r := of 0 * of 1 * (of 0)⁻¹ * (of 1) in
-  test r {x | x = 1 ∨ x = 2}
+test r {x | x = 1 ∨ x = 2}
   (of 1 * r * (of 1) * r⁻¹ * of 2 * (of 1) * (of 0) * r⁻¹ * (of 0)⁻¹ * r * of 1)
 
 #eval let r := of 0 * of 1 * (of 0) * (of 1)^2 in
-golf_solve r ∅ (of 0 * of 1 * (of 1 * of 0)⁻¹)
+test r ∅ (of 0 * of 1 * (of 1 * of 0)⁻¹)
 
 #eval let r := of 0 * of 1 * of 0 * of 1 * (of 0)^2 * of 1 in
-golf_solve r ∅ ((of 0) * (of 1) * (of 0)⁻¹ * (of 1)⁻¹)
+test r ∅ ((of 0) * (of 1) * (of 0)⁻¹ * (of 1)⁻¹)
 
--- #eval let r := of 0 * of 1 * (of 0) ^ 3 * (of 1) ^ (4 : int) in
---   (golf_solve r {0} (r * (of 1)⁻¹ * r * (of 1) * r)).iget.left
+#eval let r := of 0 * of 1 * (of 0) ^ 3 * (of 1) ^ (4 : int) in
+test r {0} (of 0 * r * (of 1)⁻¹ * r * (of 1) * r)
 
-#eval choose_t_and_x (of 0 * of 1 * (of 0) ^ 3 * (of 1) ^ (4 : int)) ∅ [0, 1]
+#eval choose_t_and_x (of 0 * of 1 * (of 0) ^ 3 * (of 1) ^ (4 : int)) {0} [0, 1]
 
 #eval let r := (of 0) * of 1 * (of 0)^(-1 : ℤ) * (of 1)^(2 : ℤ) in
-  test r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r)
+test r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r)
 
 #eval let r := (of 0 * (of 1)^2)^8 in
-  test r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r)
+test r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r)
 
 #eval let r := (of 0 * (of 1)^2)^2 in
-  (solve r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r)).iget.left
+test r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r)
 
 #eval let r := of 0 * of 1 * of 0 * of 1 * (of 0)^2 * of 1 in
-golf_solve r ∅ (of 0 ^ 4 * of 1 ^ 3)
+test r ∅ (of 1 ^ 3 * of 0 ^ 4)⁻¹
 
-#eval let r := (of 0 * (of 1) * (of 0)⁻¹ * of 1)^2 in
-  (solve r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r)).iget.left.to_list.length
-
-#eval ('ℵ'.val)
+-- #eval let r := (of 0 * (of 1) * (of 0)⁻¹ * of 1)^2 in
+--   (solve r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r)).iget.left.to_list.length
 
 def w : ℕ → free_group char
 | 0 := of 'a'
@@ -160,13 +158,17 @@ def w : ℕ → free_group char
 
 --#print string.decidable_eq
 #eval test (w 1 * (of 'a') ^ (-2 : ℤ)) {'a'} (w 3)
-#eval test (w 1 * (of 'a') ^ (-2 : ℤ)) {'a'} (w 2)
-#eval test (w 1 * (of 'a') ^ (-2 : ℤ)) {'a'} (w 1)
+#eval P.lhs  (w 1 * (of 'a') ^ (2 : ℤ))
+  (golf_solve (w 1 * (of 'a') ^ (-2 : ℤ)) {'a'} (w 2)).iget
+#eval w 2
+#eval (of 'b')⁻¹ * (of 'a')^(2 : ℤ)
+
+--#eval (golf_solve (w 1 * (of 'a') ^ (2 : ℤ)) {'a'} (w 2)) --HARD
 #eval choose_t_and_x (w 1 * (of 'a') ^ (-2 : ℤ)) {'a'} (vars (w 1 * (of 'a') ^ (-2 : ℤ)))
 
 #eval (golf_solve
   (w 1 * (of 'a') ^ (-2 : ℤ))
-  (⊤)
-  ((of 'a')^2 * w 3 * (of 'a')⁻¹ * (w 3)⁻¹ * (of 'a')⁻¹)).iget.left.to_list.length
+  ⊥
+  ((of 'a') * w 3 * (of 'a')⁻¹ * (w 3)⁻¹)).iget.left.to_list.length
 
 open multiplicative

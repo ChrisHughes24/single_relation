@@ -21,7 +21,7 @@ def psi (t x : ι) (α β : C∞) : free_group ι →* free_group ι :=
 free_group.lift'
   (λ i,
     if i = x
-    then gpowers_hom _ (of x * of' t (α⁻¹))
+    then gpowers_hom _ (of' t (α⁻¹) * of x)
     else if i = t
       then { to_fun := λ n, of' i (of_add (to_add β * to_add n)),
              map_one' := by simp,
