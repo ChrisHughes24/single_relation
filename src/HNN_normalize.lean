@@ -37,7 +37,7 @@ def mul_subscript : C∞ →* free_group (ι × C∞) ≃* free_group (ι × C�
 def remove_subscript (t : ι) : free_group (ι × C∞) →* free_group ι :=
 free_group.lift' (λ g, (mul_aut.conj (of' t g.2)).to_monoid_hom.comp (of' g.1))
 
-/-- `add_subscript t` is a one sided inverse to ``semidirect_product.inl ∘ remove_subscript t` -/
+/-- `add_subscript t` is a one sided inverse to `semidirect_product.inl ∘ remove_subscript t` -/
 def add_subscript (t : ι) : free_group ι →* free_group (ι × C∞) ⋊[mul_subscript] C∞ :=
 free_group.lift' (λ j,
   if t = j
@@ -56,13 +56,13 @@ the letter `(x, k)` appears in `w`, or `none` if there is no such occurence -/
 (w.to_list.filter_map
   (λ i : Σ i : ι × C∞, C∞, if i.1.1 = x then some i.1.2 else none)).minimum
 
-/-- `Icc_prod x a b` is the set of pairs `(i, n)` such that if
-  `i = x` then `a ≤ n ≤ b` -/
-def Icc_prod (x : ι) (a b : C∞) : set (ι × C∞) :=
-{ p | p.1 = x → a ≤ p.2 ∧ p.2 ≤ b }
+-- /-- `Icc_prod x a b` is the set of pairs `(i, n)` such that if
+--   `i = x` then `a ≤ n ≤ b` -/
+-- def Icc_prod (x : ι) (a b : C∞) : set (ι × C∞) :=
+-- { p | p.1 = x → a ≤ p.2 ∧ p.2 ≤ b }
 
-instance (x : ι) (a b : C∞) : decidable_pred (Icc_prod x a b) :=
-by dunfold Icc_prod; apply_instance
+-- instance (x : ι) (a b : C∞) : decidable_pred (Icc_prod x a b) :=
+-- by dunfold Icc_prod; apply_instance
 
 /-- If `p` is a certificate that `a` and `b` are equal, then
   `remove_subscript t (conj_P t k p)`,
@@ -125,28 +125,28 @@ in the coproduct. -/
 | ((p, n) :: l₁) (i::l₂) :=
   if i.1 = t
     then if 1 ≤ i.2
-      then match hs r' (Icc_prod x (a * of_add 1) b) p.right with
+      then match hs r' {s | s ≠ (x, a)} p.right with
         | none   := HNN_normalize_core ((1, i.2) :: (p, n) :: l₁) l₂
         | some q :=
           -- k is the minimum amount I can subtract from the subscripts
           -- and stay between a and b
           let k : C∞ := match min_subscript x q.right with
-          | some k := max (i.2⁻¹) (a * k⁻¹)
-          | none   := i.2⁻¹
+          | some m := if n < 1 then max (max (i.2⁻¹) (a * m⁻¹)) n else max (i.2⁻¹) (a * m⁻¹)
+          | none   := if n < 1 then max i.2⁻¹ n else i.2⁻¹
           end in
           HNN_normalize_core
-            (reduce_mul ((conj_P t k (P.trans p q)), n * k⁻¹) l₁)
+            (reduce_mul ((conj_P t k (P.trans p q)), n * k⁻¹) l₁) --BUG when |k| > |n|
             (let m := i.2 * k in
               if m = 1 then l₂ else ⟨t, m⟩ :: l₂)
         end
-      else match hs r' (Icc_prod x a (b * (of_add 1)⁻¹)) p.right with
+      else match hs r' {s | s ≠ (x, b)} p.right with
         | none   := HNN_normalize_core ((1, i.2) :: (p, n) :: l₁) l₂
         | some q :=
           -- k is the maximum amount I can subtract from the subscripts
           -- and stay between a and b
           let k : C∞ := match max_subscript x q.right with
-          | some k := min (i.2⁻¹) (b * k⁻¹)
-          | none   := i.2⁻¹
+          | some m := if 1 < n then min (min (i.2⁻¹) (b * m⁻¹)) n else min (i.2⁻¹) (b * m⁻¹)
+          | none   := if 1 < n then max i.2⁻¹ n else i.2⁻¹
           end in
           HNN_normalize_core
             (reduce_mul ((conj_P t k (P.trans p q)), n * k⁻¹) l₁)
@@ -159,13 +159,13 @@ meta def HNN_normalize'_single_pos (t x : ι) (r' : free_group (ι × C∞)) (a 
   (hs : Π (r : free_group (ι × C∞)) (T : set (ι × C∞)) [decidable_pred T], solver r T) :
   C∞ × P (free_group (ι × C∞)) → option (C∞ × P (free_group (ι × C∞)))
 | (n, p) :=
-  match hs r' (Icc_prod x a (b * (of_add 1)⁻¹)) p.right with
+  match hs r' {s | s ≠ (x, b)} p.right with
   | none   := none
   | some q :=
     -- k is the maximum amount I can subtract from the subscripts
     -- and stay between a and b
     let k : C∞ := match max_subscript x q.right with
-    | some k := min n (b * k⁻¹)
+    | some m := min n (b * m⁻¹)
     | none   := n
     end in let m := n * k⁻¹ in some (m, conj_P t k (p.trans q))
   end
@@ -182,13 +182,13 @@ meta def HNN_normalize'_single_neg (t x : ι) (r' : free_group (ι × C∞)) (a 
   (hs : Π (r : free_group (ι × C∞)) (T : set (ι × C∞)) [decidable_pred T], solver r T) :
   C∞ × P (free_group (ι × C∞)) → option (C∞ × P (free_group (ι × C∞)))
 | (n, p) :=
-  match hs r' (Icc_prod x (a * of_add 1) b) p.right with
+  match hs r' {s | s ≠ (x, a)} p.right with
   | none   := none
   | some q :=
     -- k is the minimum amount I can subtract from the subscripts
     -- and stay between a and b
     let k : C∞ := match min_subscript x q.right with
-    | some k := max n (a * k⁻¹)
+    | some m := max n (a * m⁻¹)
     | none   := n
     end in let m := n * k⁻¹ in some (m, conj_P t k (p.trans q))
   end
@@ -259,11 +259,13 @@ meta def HNN_normalize'_single (t x : ι) (r' : free_group (ι × C∞)) (a b : 
 | []           q m [] := [(m, q)]
 | []           q m (i::l₂) :=
   if i.1 = t
-    then HNN_normalize'_core [(m * i.2, q)] 1 1 l₂
-    else HNN_normalize'_core [(m, q)] (inr (of_list [⟨(i.1, 1), i.2⟩])) 1 l₂
+    then HNN_normalize'_core [] q (m * i.2)  l₂
+    else if m = 1
+      then HNN_normalize'_core [] (q * inr (of_list [⟨(i.1, 1), i.2⟩])) 1 l₂
+      else HNN_normalize'_core [(m, q)] (inr (of_list [⟨(i.1, 1), i.2⟩])) 1 l₂
 | ((n, p)::l₁) q m []      :=
   match HNN_normalize'_single t x r' a b hs (n, q) with
-  | none          := HNN_normalize'_core ((m, q)::(n,p)::l₁) 1 1 []
+  | none          := (m, q)::(n, p)::l₁
   | some (n', q') :=
     if n' = 1
       then HNN_normalize'_core l₁ (p * q') (n * m) []
@@ -282,7 +284,6 @@ meta def HNN_normalize'_single (t x : ι) (r' : free_group (ι × C∞)) (a b : 
           then HNN_normalize'_core l₁ (p * q') (n * m) (i::l₂)
           else HNN_normalize'_core ((n', p)::l₁) q' (n * n'⁻¹ * m) (i::l₂)
       end
--- --NOTE: HNN_normalize_core' won't usually return a list of length one when it succeeds.
 
 @[inline] meta def HNN_normalize' (t x : ι) (r' : free_group (ι × C∞)) (a b : C∞)
   (hs : Π (r : free_group (ι × C∞)) (T : set (ι × C∞)) [decidable_pred T], solver r T)
@@ -290,7 +291,7 @@ meta def HNN_normalize'_single (t x : ι) (r' : free_group (ι × C∞)) (a b : 
 match HNN_normalize'_core t x r' a b hs [] 1 1 w.to_list with
 | []               := some 1
 | [(n, p)]         := some (n, p)
-| (a::b::l)     := none
+| (a::b::l)        := none
 end
 
 /-- Given a word `w` in `free_group ι`, `HNN_normalize` checks whether it
