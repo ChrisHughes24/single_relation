@@ -674,16 +674,17 @@ HNN normalization if the word can be put into the form $gt^n$.
 
 The case in Example \ref{lastfirst} can be generalized.
 Consider a word \newline $t^{n_0}w_0 \dots t^{n_{k-2}}w_{k-2}t^{n_{k-1}}w_{k-1}t^{n_{k}}w_{k}t^d$.
-If $n_k > 0$ and for every $m > 0$, $\sum_{i=0}^m n_{k - i} \ge 0$ then
+If for every $m > 0$, $\text{sign}(n_k)\sum_{i=0}^m n_{k - i} \ge 0$ then
 in order to put the word in the form $gt^n$ with $g \in F(S')$, then it will definitely
 be necessary to check $w_k$ is equal to a word  $a \in A$ in the quotient
 $F(S') / r'$ and rewrite $tw_k$ to $\phi(a)t$ so this
 rewrite should be attempted first.
-There is a similar condition when $n_k < 0$.
+There is a similar condition when $n_k < 0$. Call this condition Condition 1.
 
-Consider a word $t^{n_0}w_0 \dots t^{n_{k-2}}w_{k-2}t^{n_{k-1}}w_{k-1}t^{n_{k}}w_{k}t^d$,
-then if $n_i > 0$ and for every $m > 0$, $\sum_{j=i}^m n_j$ is positive and
-$i < k$, we say the pair $t^{n_i}w_i$ satisifies Condition 2.
+Consider a word
+$t^{n_0}w_0 \dots t^{n_{k-2}}w_{k-2}t^{n_{k-1}}w_{k-1}t^{n_{k}}w_{k}t^d$,
+then if for every $j \le i$,and for every $m > 0$, $\text{sign}(n_j)\sum_{l=j}^m n_l \ge 0$ and
+$i < k$, we say that $i$ satisfies Condition 2.
 When $t^{n_i}w_i$ satisfies Condition 2,
 normalizing this pair first will not make any of the rewrites to the right
 of $w_i$ any easier; there will no no cancellation of $t$s,
@@ -704,7 +705,7 @@ value of the exponents of these letters.
 \end{defn}
 
 The rewrites are applied with the following priority
-%% Possibly not quite right - check it
+
 \begin{itemize}
   \item Any pairs $t_nw_n$ satisfying Condition 1
   \item Of the pairs that do not satisfy Condition 2, priority is given
