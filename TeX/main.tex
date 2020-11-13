@@ -704,7 +704,7 @@ value of the exponents of these letters.
 \end{defn}
 
 The rewrites are applied with the following priority
-
+%% Possibly not quite right - check it
 \begin{itemize}
   \item Any pairs $t_nw_n$ satisfying Condition 1
   \item Of the pairs that do not satisfy Condition 2, priority is given
@@ -764,16 +764,30 @@ congruence.
   $t^n$, $t^na$ and $t^nat$.
 \end{defn}
 
-\begin{defn}(PowProofAux)
-  \textit{PowProofAux} is a map $F(S) \to F(S \cup \{t'\})$, where $t'$ is some letter not in $S$.
-  \textit{PowProofAux} replaces every occurence of $t^k$ with $t'^at^b$ in such a way that $a + n b = k$,
-  and every partial exponent sum of $t'$ in $\text{PowProofAux}(w)$ is either not a multiple of $n$,
+\begin{defn}
+  $h$ is a map $F(S) \to F(S \cup \{t'\})$, where $t'$ is some letter not in $S$.
+  $h$ replaces every occurence of $t^k$ with $t'^at^b$ in such a way that $a + n b = k$,
+  and every partial exponent sum of $t'$ in $h(w)$ is either not a multiple of $n$,
   or it is zero.
 \end{defn}
 
+\begin{defn}
+  $\theta$ is a group homomorphism $F(S \cup \{t'\})$. Let $s \in S$. Then
+  \begin{equation}
+    \theta(s) = \begin{cases}
+      t & \text{if } s = t' \\
+      t^n & \text{if } s = t \\
+      s & otherwise
+    \end{cases}
+  \end{equation}
+\end{defn}
+
+$\theta$ and $h$ satisfy $\theta \circ h = \text{id}$. For any $w$ in $F(S)$,
+$\theta(w) = \psi_2(w)$.
+
 \begin{defn}(PowProof)\label{PowProof}
   \textit{PowProof} is a map $F(S) \to F(S)$. $\text{PowProof}(w)$ is defined to be
-  $\text{PowProofAux}(w)$, but with every occurence of $t'$ replaced with $1$.
+  $h(w)$, but with every occurence of $t'$ replaced with $1$.
 \end{defn}
 
 \begin{theorem}\label{powproof}
@@ -784,13 +798,13 @@ congruence.
 \begin{sublemma}\label{powproof1}
   Consider $\prod_{i = 1}^a s_i^{k_i}$, as an element of the $F(S \cup \{t'\})$
   with $s_i \in S \cup \{t'\}$ (Note that this is not necessarily a reduced
-  word $k_i$ may be zero and $s_i$ may be equal to $s_{i+1}$).
+  word; $k_i$ may be zero and $s_i$ may be equal to $s_{i+1}$).
   Suppose every partial product $\prod_{i=1}^b s_i^{k_i}$,
   with $b \le a$ has the property that if the exponent sum of $t'$ is a multiple
   of $n$, then it is zero. Suppose also that $\prod_{i = 1}^b s_i^{k_i}$ has the
   property that for every occurence of $t'^k$ in the reduced product, $k$ is a multiple of
   $n$. Then the reduced word $\prod_{i = 1}^a s_i^{k_i}$
-  can be written without an occurence $t'$.
+  can be written without an occurence of $t'$.
 \end{sublemma}
 
 \textbf{Proof of Lemma \ref{powproof1}.} $\prod_{i=0}^a s_i^{k_i}$ can be written as a reduced
@@ -804,22 +818,29 @@ partial product is $0$. So $\prod_{i=1}^a s_i^{k_i}$ does not contain $t'$.
 
 \textbf{Proof of Theorem \ref{powproof}} \newline
 If $\text{Eval}(\psi_2(r))(p)$ is in the image of $\psi_2$, then
-$\text{Eval}(r)(\text{PowProofAux}(p))$ has the property
+$\text{Eval}(r)(F(h)(p))$ has the property
 that for every occurence of $t'^k$, $k$ is a multiple of $n$.
-If $p' := \text{PowProofAux}(p)$,
+If $p' := F(h)(p)$,
 then $\text{Eval}(r)(p')$ can be written as a product of the form in
 Lemma \ref{powproof1}.
 If $r' = \prod_i u_i^{l_i}$, then to write $\text{Eval}(r)(p')$ in this
-form, send $\left(\prod_i \left[\prod_{j = 1}^a s_{ij}^{k_j}\right] , \prod_i v_i^{m_i}\right)
+form, send $\prod_i \left[\prod_{j = 1}^a s_{ij}^{k_j}\right]
 \in P(F(S \cup \{t'\}))$, to
 \begin{equation} \label{eq:bigprod}
-  \left(\prod_i \left(\prod_{j = 1}^a {s_{ij}}^{k_j}\right) \left(\prod_j u_j^{l_j}\right)
-  \left(\prod_{j = 1}^a {s_{i(a - j)}}^{-k_{a - j}}\right)\right)\prod_i v_i^{m_i}
+  \prod_i \left(\left(\prod_{j = 1}^a {s_{ij}}^{k_j}\right) \left(\prod_j u_j^{l_j}\right)
+  \left(\prod_{j = 1}^a {s_{i(a - j)}}^{-k_{a - j}}\right)\right)
 \end{equation}
 If all the nested products in Equation \ref{eq:bigprod} are appended into one long product,
 then the product has the form in Lemma \ref{powproof1}. Therefore when the word is reduced
-it will not contain $t'$. This means that deleting all occurences of $t'$ will in
-$p'$ will not change $\text{Eval}(r)(p')$, and therefore
-$\text{Eval}(r)(PowProof(p)) = \text{Eval}(r)(p')$.
+it will not contain $t'$ by Lemma \ref{powproof1}. This means that deleting all occurences of
+$t'$ will in $p'$ will not change $\text{Eval}(r)(p')$, and therefore
+$\text{Eval}(r)(F(\text{PowProof})(p)) = \text{Eval}(r)(F(h)(p))$.
+Applying $\psi_2$ to both sides gives
+$\psi_2(\text{Eval}(r)(F(\text{PowProof})(p)) =
+  \psi_2(\text{Eval}(r)(F(h)(p))) =
+  \theta(\text{Eval}(r)(F(h)(p))) =
+  \text{Eval}(\psi_2(r))(p)$.
+
+
 
 \end{document}
