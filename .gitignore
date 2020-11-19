@@ -11,3 +11,4 @@ all.lean
 *.out
 *.fdb_latexmk
 *.synctex.gz
+*.dvi
