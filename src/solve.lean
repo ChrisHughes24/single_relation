@@ -25,7 +25,7 @@ meta def solve : Π ⦃ι : Type⦄ [decidable_eq ι]
       -- `guard (vars_w.all (∈ T)) >> return (inr w))` first,
       -- below line would break completeness.
     let vars_cyc_r := vars cyc_r in
-    guard (vars_cyc_r.all (λ i, i ∈ vars_w ∨ i ∈ T)) >>
+    --guard (vars_cyc_r.all (λ i, i ∈ vars_w ∨ i ∈ T)) >>
       -- heuristic; algorithm is still complete without this line below
       -- solve_by_subst seems to usually make it slower, but maybe worth doing anyway if it is
       -- a lot faster in some cases
@@ -55,229 +55,250 @@ end
 
 open free_group
 
-#eval test (of 0 * of 1 * (of 0)⁻¹) ∅ (of 0 * of 1 * (of 0)⁻¹)
+def free_group.length {α : Type*} [decidable_eq α] : free_group α → ℕ :=
+λ w, (w.to_list.map (λ a : Σ i : α, C∞, a.2.to_add.nat_abs)).sum
 
---#eval solve (of 0 ^ 88 * of 1 ^ 88) {1} (of 0 * of 1 * (of 0)⁻¹)
+-- #eval let r := (of 0 * of 1 * (of 0)⁻¹ * (of 1) ^ (-2 : int)) in
+-- golf₁ r (solve r ∅ (of 0 ^ 10 * of 1 * of 0 ^ (-10 : int) * of 1 ^ (-1024 : int))).iget
 
-#eval test (of 0 * of 1) ∅ (of 0 * (of 1) * (of 0)⁻¹ * (of 1)⁻¹)
--- #eval ((solve (of 0 * of 1) ∅
---             (of 0 * (of 1) * (of 0)⁻¹ * (of 1)⁻¹)).is_some)
+#eval let r := (of 0 * of 1 * (of 0)⁻¹ * (of 1) ^ (-2 : int)) in
+(golf₁ r (solve r ∅ ((of 0) ^ (-5 : int) * of 1 * (of 0) ^ 5 * of 1 * (of 0) ^
+  (-5 : int) * (of 1)⁻¹ * of 0 ^ 5 * (of 1)⁻¹)).iget).left.length
 
-#eval test (of 0 * of 1 * (of 0)⁻¹ * (of 1)⁻¹) ∅
-  (of 0 ^ 2 * (of 1)⁻¹ ^ 2 * (of 0)⁻¹ ^ 2 * (of 1) ^ 2)
+-- #eval let a := of 1 \ in let b := of 0 in
+--   let r := a * b * a⁻¹ * b ^ (-2 : int) in
+--   solve r ∅ (a^(-5 : int) * b * a^5 * b * a^(-5 : int) * b⁻¹ * a^5 * b⁻¹)
 
--- #eval (solve (of 0 * of 1 * (of 0)⁻¹ * (of 1)⁻¹) ∅
---             (of 0 ^ 2 * (of 1)⁻¹ ^ 2 * (of 0)⁻¹ ^ 2 * (of 1) ^ 2)).iget.left
-
-#eval test (of "a" * of "b" * (of "a")⁻¹ * (of "b")⁻¹) ∅
-  (of "a" ^ 2 * (of "b") * (of "a")⁻¹ ^ 2 * (of "b")⁻¹)
---P.lhs (of "a" * of "b" * (of "a")⁻¹ * (of "b")⁻¹)
---free_group.map (golf_single (of "a" * of "b" * (of "a")⁻¹ * (of "b")⁻¹))
--- ((solve (of "a" * of "b" * (of "a")⁻¹ * (of "b")⁻¹) ∅
---     (of "a" ^ 2 * (of "b") * (of "a")⁻¹ ^ 2 * (of "b")⁻¹)).iget)
-
-#eval let r := of 0 * of 1 * (of 0)^(-3 : ℤ) * (of 1)^4 in
-  test r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0) * r⁻¹ * (of 0)⁻¹ * r)
-  --(solve r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0) * r⁻¹ * (of 0)⁻¹ * r)).iget.left
-
-#eval let r := of 0 * of 1 * (of 0)^(-5 : ℤ) * (of 1)^4 in
-  (test r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)
-    * r⁻¹ * (of 0)⁻¹ * r))
-
-#eval let r := of 0 * of 1 * (of 0)^(-5 : ℤ) * (of 1)^4 in
-(of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0) * r⁻¹ * (of 0)⁻¹ * r)
-
--- #eval let r := of 0 * of 1 * (of 0)^(-11 : ℤ) * (of 1)^4 in
---   (solve r ∅ (of 0 ^ 10 * of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)
---     * r⁻¹ * (of 0)⁻¹ * r * of 0 ^ (-10 : ℤ))⁻¹).iget.left.to_list.length
-
-#eval let r := of 0 * of 1 * (of 0)^(-9 : ℤ) * (of 1)^6 in
-  (solve r {0} (of 0 ^ 7 * of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)
-    * r⁻¹ * (of 0)⁻¹ * r)⁻¹).iget.left.to_list.length
-
-#eval let r := (of 0 ^ 20 * of 1 ^ 11)^2 in
-  solve r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)
-    * r⁻¹ * (of 0)⁻¹ * r)
-
-def r : free_group ℕ := (of 0 ^ 5 * of 1 ^ 5)^2
+#eval
+  let a := of 1 * of 0 in let b := (of 0)^2 * of 1 * of 2 in
+  let r := a * b * a⁻¹ * b ^ (-2 : int) in
+  (golf_solve r ∅ (a^(-5 : int) * b * a^5 * b * a^(-5 : int) * b⁻¹ * a^5 * b⁻¹)).iget.left.length
 
 
-#eval let r := (of 0 ^ 7 * of 1 ^ 3)^2 in --BUG
-(solve r ∅ r)
+
+-- #eval test (of 0 * of 1 * (of 0)⁻¹) ∅ (of 0 * of 1 * (of 0)⁻¹)
+
+-- --#eval solve (of 0 ^ 88 * of 1 ^ 88) {1} (of 0 * of 1 * (of 0)⁻¹)
+
+-- #eval test (of 0 * of 1) ∅ (of 0 * (of 1) * (of 0)⁻¹ * (of 1)⁻¹)
+-- -- #eval ((solve (of 0 * of 1) ∅
+-- --             (of 0 * (of 1) * (of 0)⁻¹ * (of 1)⁻¹)).is_some)
+
+-- #eval test (of 0 * of 1 * (of 0)⁻¹ * (of 1)⁻¹) ∅
+--   (of 0 ^ 2 * (of 1)⁻¹ ^ 2 * (of 0)⁻¹ ^ 2 * (of 1) ^ 2)
+
+-- -- #eval (solve (of 0 * of 1 * (of 0)⁻¹ * (of 1)⁻¹) ∅
+-- --             (of 0 ^ 2 * (of 1)⁻¹ ^ 2 * (of 0)⁻¹ ^ 2 * (of 1) ^ 2)).iget.left
+
+-- #eval test (of "a" * of "b" * (of "a")⁻¹ * (of "b")⁻¹) ∅
+--   (of "a" ^ 2 * (of "b") * (of "a")⁻¹ ^ 2 * (of "b")⁻¹)
+-- --P.lhs (of "a" * of "b" * (of "a")⁻¹ * (of "b")⁻¹)
+-- --free_group.map (golf_single (of "a" * of "b" * (of "a")⁻¹ * (of "b")⁻¹))
+-- -- ((solve (of "a" * of "b" * (of "a")⁻¹ * (of "b")⁻¹) ∅
+-- --     (of "a" ^ 2 * (of "b") * (of "a")⁻¹ ^ 2 * (of "b")⁻¹)).iget)
+
+-- #eval let r := of 0 * of 1 * (of 0)^(-3 : ℤ) * (of 1)^4 in
+--   test r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0) * r⁻¹ * (of 0)⁻¹ * r)
+--   --(solve r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0) * r⁻¹ * (of 0)⁻¹ * r)).iget.left
+
+-- #eval let r := of 0 * of 1 * (of 0)^(-5 : ℤ) * (of 1)^4 in
+--   (test r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)
+--     * r⁻¹ * (of 0)⁻¹ * r))
+
+-- #eval let r := of 0 * of 1 * (of 0)^(-5 : ℤ) * (of 1)^4 in
+-- (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0) * r⁻¹ * (of 0)⁻¹ * r)
+
+-- -- #eval let r := of 0 * of 1 * (of 0)^(-11 : ℤ) * (of 1)^4 in
+-- --   (solve r ∅ (of 0 ^ 10 * of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)
+-- --     * r⁻¹ * (of 0)⁻¹ * r * of 0 ^ (-10 : ℤ))⁻¹).iget.left.to_list.length
+
+-- #eval let r := of 0 * of 1 * (of 0)^(-9 : ℤ) * (of 1)^6 in
+--   (solve r {0} (of 0 ^ 7 * of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)
+--     * r⁻¹ * (of 0)⁻¹ * r)⁻¹).iget.left.to_list.length
+
+-- #eval let r := (of 0 ^ 20 * of 1 ^ 11)^2 in
+--   solve r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)
+--     * r⁻¹ * (of 0)⁻¹ * r)
+
+-- def r : free_group ℕ := (of 0 ^ 5 * of 1 ^ 5)^2
 
 
-open multiplicative
-#eval choose_t_and_x r ∅ [0, 1]
-#eval ((cyclically_conjugate 0 r).2 = r : bool)
-#eval add_subscript 1
-  (psi 1 0 (of_add 6) (of_add 6) r)
-def r₁ := (add_subscript 1
-  (psi 1 0 (of_add 6) (of_add 6) r)).left
-
-#eval (psi 1 0 (of_add 6) (of_add 6) r).to_list
-#eval HNN_normalize_core 1 0
-  (add_subscript 0 (psi 1 0 (of_add 6) (of_add 6) r)).left
-    (of_add (-12)) (of_add 0)
-  (λ r T _, by exactI solve r T) []
-  [⟨0, of_add 1⟩, ⟨1, of_add (-6)⟩, ⟨0, of_add 1⟩, ⟨1, of_add (-6)⟩,
-    ⟨0, of_add 1⟩, ⟨1, of_add 12⟩, ⟨0, of_add 1⟩,
-    ⟨1, of_add (-6)⟩, ⟨0, of_add 1⟩, ⟨1, of_add (-6)⟩,
-    ⟨0, of_add 1⟩, ⟨1, of_add 12⟩]
-
-meta def Z := HNN_normalize_core 1 0
-  (add_subscript 0 (psi 1 0 (of_add 6) (of_add 6) r)).left
-    (of_add (-12)) (of_add 0)
-  (λ r T _, by exactI solve r T)
-  [(⟨1, of_list [⟨(0, 1), of_add 1⟩]⟩, 1)]
-  [⟨1, of_add (-6)⟩, ⟨0, of_add 1⟩, ⟨1, of_add (-6)⟩,
-    ⟨0, of_add 1⟩, ⟨1, of_add 12⟩, ⟨0, of_add 1⟩,
-    ⟨1, of_add (-6)⟩, ⟨0, of_add 1⟩, ⟨1, of_add (-6)⟩,
-    ⟨0, of_add 1⟩, ⟨1, of_add 12⟩]
-
-#eval solve r₁ { x | x ≠ (0, of_add 0) } (of_list [⟨(0, 1), of_add 1⟩])
-
-#eval HNN_normalize_core 1 0
-  (add_subscript 0 (psi 1 0 (of_add 6) (of_add 6) r)).left
-    (of_add (-12)) (of_add 0)
-  (λ r T _, by exactI solve r T)
-  [(1, of_add (-6)), (⟨1, of_list [⟨(0, 1), of_add 1⟩]⟩, 1)]
-  [⟨0, of_add 1⟩, ⟨1, of_add (-6)⟩,
-    ⟨0, of_add 1⟩, ⟨1, of_add 12⟩, ⟨0, of_add 1⟩,
-    ⟨1, of_add (-6)⟩, ⟨0, of_add 1⟩, ⟨1, of_add (-6)⟩,
-    ⟨0, of_add 1⟩, ⟨1, of_add 12⟩]
-
-#eval (HNN_normalize_core 1 0
-  (add_subscript 0 (psi 1 0 (of_add 6) (of_add 6) r)).left
-    (of_add (-12)) (of_add 0)
-  (λ r T _, by exactI solve r T)
-  [(inr (of_list [⟨(0, of_add 0), of_add 1⟩]), of_add (-6)),
-    (⟨1, of_list [⟨(0, 1), of_add 1⟩]⟩, 1)]
-  [⟨1, of_add (-6)⟩,
-    ⟨0, of_add 1⟩, ⟨1, of_add 12⟩, ⟨0, of_add 1⟩,
-    ⟨1, of_add (-6)⟩, ⟨0, of_add 1⟩, ⟨1, of_add (-6)⟩,
-    ⟨0, of_add 1⟩, ⟨1, of_add 12⟩])
-
-#eval (HNN_normalize_core 1 0
-  (add_subscript 0 (psi 1 0 (of_add 6) (of_add 6) r)).left
-    (of_add (-12)) (of_add 0)
-  (λ r T _, by exactI solve r T)
-  [(1, of_add (-6)), (inr (of_list [⟨(0, of_add 0), of_add 1⟩]), of_add (-6)),
-    (⟨1, of_list [⟨(0, 1), of_add 1⟩]⟩, 1)]
-  [⟨0, of_add 1⟩, ⟨1, of_add 12⟩, ⟨0, of_add 1⟩,
-    ⟨1, of_add (-6)⟩, ⟨0, of_add 1⟩, ⟨1, of_add (-6)⟩,
-    ⟨0, of_add 1⟩, ⟨1, of_add 12⟩])
-
-#eval (HNN_normalize_core 1 0
-  (add_subscript 0 (psi 1 0 (of_add 6) (of_add 6) r)).left
-    (of_add (-12)) (of_add 0)
-  (λ r T _, by exactI solve r T)
-  [(inr (of_list [⟨(0, of_add 0), of_add 1⟩]), of_add (-6)),
-   (inr (of_list [⟨(0, of_add 0), of_add 1⟩]), of_add (-6)),
-    (⟨1, of_list [⟨(0, 1), of_add 1⟩]⟩, 1)]
-  [⟨1, of_add 12⟩, ⟨0, of_add 1⟩,
-    ⟨1, of_add (-6)⟩, ⟨0, of_add 1⟩, ⟨1, of_add (-6)⟩,
-    ⟨0, of_add 1⟩, ⟨1, of_add 12⟩] = Z: bool)
-
-#eval show C∞, from
-  match solve r₁ {x | x ≠ (0, of_add (-12))} (of_list [⟨(0, of_add 0), of_add 1⟩]) with
-  | none := sorry
-  | some q := let k : C∞ :=
-    match min_subscript 0 q.right with
-    | some m := max ((of_add 12)⁻¹) ((of_add (-12)) * m⁻¹)
-    | none   := (of_add 12)⁻¹
-    end in k
-  end
+-- #eval let r := (of 0 ^ 7 * of 1 ^ 3)^2 in --BUG
+-- (solve r ∅ r)
 
 
-#eval HNN_normalize 1 0 (add_subscript 0 (psi 1 0 (of_add 6) (of_add 6) r)).left
-    (of_add (-12)) (of_add 0)
-  (λ r T _, by exactI solve r T)
-  (psi 1 0 (of_add 6) (of_add 6) r)
+-- open multiplicative
+-- #eval choose_t_and_x r ∅ [0, 1]
+-- #eval ((cyclically_conjugate 0 r).2 = r : bool)
+-- #eval add_subscript 1
+--   (psi 1 0 (of_add 6) (of_add 6) r)
+-- def r₁ := (add_subscript 1
+--   (psi 1 0 (of_add 6) (of_add 6) r)).left
 
-def r' := (add_subscript 1 (psi 1 0 (of_add 4) (of_add 4) r)).left
+-- #eval (psi 1 0 (of_add 6) (of_add 6) r).to_list
+-- #eval HNN_normalize_core 1 0
+--   (add_subscript 0 (psi 1 0 (of_add 6) (of_add 6) r)).left
+--     (of_add (-12)) (of_add 0)
+--   (λ r T _, by exactI solve r T) []
+--   [⟨0, of_add 1⟩, ⟨1, of_add (-6)⟩, ⟨0, of_add 1⟩, ⟨1, of_add (-6)⟩,
+--     ⟨0, of_add 1⟩, ⟨1, of_add 12⟩, ⟨0, of_add 1⟩,
+--     ⟨1, of_add (-6)⟩, ⟨0, of_add 1⟩, ⟨1, of_add (-6)⟩,
+--     ⟨0, of_add 1⟩, ⟨1, of_add 12⟩]
 
-#eval choose_t_and_x r' ∅ (vars r')
-def r₂ := (add_subscript (0, of_add (0 : ℤ))
-  (psi (0, of_add 0) (0, of_add (-4 : ℤ)) (of_add 2) (of_add 2) r')).left
+-- meta def Z := HNN_normalize_core 1 0
+--   (add_subscript 0 (psi 1 0 (of_add 6) (of_add 6) r)).left
+--     (of_add (-12)) (of_add 0)
+--   (λ r T _, by exactI solve r T)
+--   [(⟨1, of_list [⟨(0, 1), of_add 1⟩]⟩, 1)]
+--   [⟨1, of_add (-6)⟩, ⟨0, of_add 1⟩, ⟨1, of_add (-6)⟩,
+--     ⟨0, of_add 1⟩, ⟨1, of_add 12⟩, ⟨0, of_add 1⟩,
+--     ⟨1, of_add (-6)⟩, ⟨0, of_add 1⟩, ⟨1, of_add (-6)⟩,
+--     ⟨0, of_add 1⟩, ⟨1, of_add 12⟩]
 
-#eval r₂
-#eval base_case_solver ∅ ((0, of_add (-4 : ℤ)), of_add (2 : ℤ)) (of_add (-2 : ℤ)) r₂
+-- #eval solve r₁ { x | x ≠ (0, of_add 0) } (of_list [⟨(0, 1), of_add 1⟩])
 
-#eval let r := of 0 * of 1 * (of 0)^(-17 : ℤ) * (of 1)^5 in
+-- #eval HNN_normalize_core 1 0
+--   (add_subscript 0 (psi 1 0 (of_add 6) (of_add 6) r)).left
+--     (of_add (-12)) (of_add 0)
+--   (λ r T _, by exactI solve r T)
+--   [(1, of_add (-6)), (⟨1, of_list [⟨(0, 1), of_add 1⟩]⟩, 1)]
+--   [⟨0, of_add 1⟩, ⟨1, of_add (-6)⟩,
+--     ⟨0, of_add 1⟩, ⟨1, of_add 12⟩, ⟨0, of_add 1⟩,
+--     ⟨1, of_add (-6)⟩, ⟨0, of_add 1⟩, ⟨1, of_add (-6)⟩,
+--     ⟨0, of_add 1⟩, ⟨1, of_add 12⟩]
+
+-- #eval (HNN_normalize_core 1 0
+--   (add_subscript 0 (psi 1 0 (of_add 6) (of_add 6) r)).left
+--     (of_add (-12)) (of_add 0)
+--   (λ r T _, by exactI solve r T)
+--   [(inr (of_list [⟨(0, of_add 0), of_add 1⟩]), of_add (-6)),
+--     (⟨1, of_list [⟨(0, 1), of_add 1⟩]⟩, 1)]
+--   [⟨1, of_add (-6)⟩,
+--     ⟨0, of_add 1⟩, ⟨1, of_add 12⟩, ⟨0, of_add 1⟩,
+--     ⟨1, of_add (-6)⟩, ⟨0, of_add 1⟩, ⟨1, of_add (-6)⟩,
+--     ⟨0, of_add 1⟩, ⟨1, of_add 12⟩])
+
+-- #eval (HNN_normalize_core 1 0
+--   (add_subscript 0 (psi 1 0 (of_add 6) (of_add 6) r)).left
+--     (of_add (-12)) (of_add 0)
+--   (λ r T _, by exactI solve r T)
+--   [(1, of_add (-6)), (inr (of_list [⟨(0, of_add 0), of_add 1⟩]), of_add (-6)),
+--     (⟨1, of_list [⟨(0, 1), of_add 1⟩]⟩, 1)]
+--   [⟨0, of_add 1⟩, ⟨1, of_add 12⟩, ⟨0, of_add 1⟩,
+--     ⟨1, of_add (-6)⟩, ⟨0, of_add 1⟩, ⟨1, of_add (-6)⟩,
+--     ⟨0, of_add 1⟩, ⟨1, of_add 12⟩])
+
+-- #eval (HNN_normalize_core 1 0
+--   (add_subscript 0 (psi 1 0 (of_add 6) (of_add 6) r)).left
+--     (of_add (-12)) (of_add 0)
+--   (λ r T _, by exactI solve r T)
+--   [(inr (of_list [⟨(0, of_add 0), of_add 1⟩]), of_add (-6)),
+--    (inr (of_list [⟨(0, of_add 0), of_add 1⟩]), of_add (-6)),
+--     (⟨1, of_list [⟨(0, 1), of_add 1⟩]⟩, 1)]
+--   [⟨1, of_add 12⟩, ⟨0, of_add 1⟩,
+--     ⟨1, of_add (-6)⟩, ⟨0, of_add 1⟩, ⟨1, of_add (-6)⟩,
+--     ⟨0, of_add 1⟩, ⟨1, of_add 12⟩] = Z: bool)
+
+-- #eval show C∞, from
+--   match solve r₁ {x | x ≠ (0, of_add (-12))} (of_list [⟨(0, of_add 0), of_add 1⟩]) with
+--   | none := sorry
+--   | some q := let k : C∞ :=
+--     match min_subscript 0 q.right with
+--     | some m := max ((of_add 12)⁻¹) ((of_add (-12)) * m⁻¹)
+--     | none   := (of_add 12)⁻¹
+--     end in k
+--   end
+
+
+-- #eval HNN_normalize 1 0 (add_subscript 0 (psi 1 0 (of_add 6) (of_add 6) r)).left
+--     (of_add (-12)) (of_add 0)
+--   (λ r T _, by exactI solve r T)
+--   (psi 1 0 (of_add 6) (of_add 6) r)
+
+-- def r' := (add_subscript 1 (psi 1 0 (of_add 4) (of_add 4) r)).left
+
+-- #eval choose_t_and_x r' ∅ (vars r')
+-- def r₂ := (add_subscript (0, of_add (0 : ℤ))
+--   (psi (0, of_add 0) (0, of_add (-4 : ℤ)) (of_add 2) (of_add 2) r')).left
+
+-- #eval r₂
+-- #eval base_case_solver ∅ ((0, of_add (-4 : ℤ)), of_add (2 : ℤ)) (of_add (-2 : ℤ)) r₂
+
+#eval let r := of 0 * of 1 * (of 0)^(-16 : ℤ) * (of 1)^5 in
   (test r ∅ ((of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)
     * r⁻¹ * (of 0)⁻¹ * r))⁻¹)
 
-#eval let r := of 0 * of 1 * (of 0)^(-1 : ℤ) * (of 1)^1 in
-let w := (of 2 * r * (of 2)⁻¹ * of 1 * r * (of 1)⁻¹ * r⁻¹ *
-  (of 0) * r⁻¹ * (of 0)⁻¹ * r * of 2 * r * (of 2)⁻¹) in
-  test r {x | x ≠ 2} w.
+-- #eval let r := of 0 * of 1 * (of 0)^(-1 : ℤ) * (of 1)^1 in
+-- let w := (of 2 * r * (of 2)⁻¹ * of 1 * r * (of 1)⁻¹ * r⁻¹ *
+--   (of 0) * r⁻¹ * (of 0)⁻¹ * r * of 2 * r * (of 2)⁻¹) in
+--   test r {x | x ≠ 2} w.
 
--- #eval solve (of 0 * of 1) (of 0 * of 1 * )
+-- -- #eval solve (of 0 * of 1) (of 0 * of 1 * )
 
 
-#eval let r := (of 0)^1 * of 1 * (of 0)^(-2 : ℤ) * (of 1)^(-1 : ℤ) in
-  (test r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r))
-  -- (P.lhs r
-  --   (solve r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r)).iget =
-  -- (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r) : bool)
+-- #eval let r := (of 0)^1 * of 1 * (of 0)^(-2 : ℤ) * (of 1)^(-1 : ℤ) in
+--   (test r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r))
+--   -- (P.lhs r
+--   --   (solve r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r)).iget =
+--   -- (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r) : bool)
 
-#eval let r := (of 'a') ^ (-2 : ℤ) in
-test r ∅ ((of 'a') ^ 22)
+-- #eval let r := (of 'a') ^ (-2 : ℤ) in
+-- test r ∅ ((of 'a') ^ 22)
 
-#eval let r := (of 'a') ^ (-2 : ℤ) in
-test r {'b'} ((of 'a') ^ 22 * of 'b' * of 'a' ^ (-10 : ℤ) * (of 'b'))
+-- #eval let r := (of 'a') ^ (-2 : ℤ) in
+-- test r {'b'} ((of 'a') ^ 22 * of 'b' * of 'a' ^ (-10 : ℤ) * (of 'b'))
 
-#eval let r := (1 : free_group ℕ) in test r {0} 1
+-- #eval let r := (1 : free_group ℕ) in test r {0} 1
 
-#eval let r := (1 : free_group ℕ) in test r ∅ 1
+-- #eval let r := (1 : free_group ℕ) in test r ∅ 1
 
-#eval let r := of 0 * of 1 * (of 0)⁻¹ * (of 1) in
-test r {x | x = 1 ∨ x = 2}
-  (of 1 * r * (of 1) * r⁻¹ * of 2 * (of 1) * (of 0) * r⁻¹ * (of 0)⁻¹ * r * of 1)
+-- #eval let r := of 0 * of 1 * (of 0)⁻¹ * (of 1) in
+-- test r {x | x = 1 ∨ x = 2}
+--   (of 1 * r * (of 1) * r⁻¹ * of 2 * (of 1) * (of 0) * r⁻¹ * (of 0)⁻¹ * r * of 1)
 
-#eval let r := of 0 * of 1 * (of 0) * (of 1)^2 in
-test r ∅ (of 0 * of 1 * (of 1 * of 0)⁻¹)
+-- #eval let r := of 0 * of 1 * (of 0) * (of 1)^2 in
+-- test r ∅ (of 0 * of 1 * (of 1 * of 0)⁻¹)
 
-#eval let r := of 0 * of 1 * of 0 * of 1 * (of 0)^2 * of 1 in
-test r ∅ ((of 0) * (of 1) * (of 0)⁻¹ * (of 1)⁻¹)
+-- #eval let r := of 0 * of 1 * of 0 * of 1 * (of 0)^2 * of 1 in
+-- test r ∅ ((of 0) * (of 1) * (of 0)⁻¹ * (of 1)⁻¹)
 
 #eval let r := of 0 * of 1 * (of 0) ^ 3 * (of 1) ^ (4 : int) in
-test r {0} (of 0 * r * (of 1)⁻¹ * r * (of 1) * r)
+test r ∅ (r * (of 1)⁻¹ * r * (of 1) * r)
 
-#eval choose_t_and_x (of 0 * of 1 * (of 0) ^ 3 * (of 1) ^ (4 : int)) {0} [0, 1]
+-- #eval choose_t_and_x (of 0 * of 1 * (of 0) ^ 3 * (of 1) ^ (4 : int)) {0} [0, 1]
 
-#eval let r := (of 0) * of 1 * (of 0)^(-1 : ℤ) * (of 1)^(2 : ℤ) in
-test r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r)
+-- #eval let r := (of 0) * of 1 * (of 0)^(-1 : ℤ) * (of 1)^(2 : ℤ) in
+-- test r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r)
 
-#eval let r := (of 0 * (of 1)^2)^8 in
-test r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r)
+-- #eval let r := (of 0 * (of 1)^2)^8 in
+-- test r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r)
 
-#eval let r := (of 0 * (of 1)^2)^2 in
-test r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r)
+-- #eval let r := (of 0 * (of 1)^2)^2 in
+-- test r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r)
 
-#eval let r := of 0 * of 1 * of 0 * of 1 * (of 0)^2 * of 1 in
-test r ∅ (of 1 ^ 3 * of 0 ^ 4)⁻¹
+-- #eval let r := of 0 * of 1 * of 0 * of 1 * (of 0)^2 * of 1 in
+-- test r ∅ (of 1 ^ 3 * of 0 ^ 4)⁻¹
 
--- #eval let r := (of 0 * (of 1) * (of 0)⁻¹ * of 1)^2 in
---   (solve r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r)).iget.left.to_list.length
+-- -- #eval let r := (of 0 * (of 1) * (of 0)⁻¹ * of 1)^2 in
+-- --   (solve r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)⁻¹ * r⁻¹ * (of 0) * r)).iget.left.to_list.length
 
 def w : ℕ → free_group char
 | 0 := of 'a'
 | (n+1) := ((of 'b')⁻¹ * w n * of 'b')⁻¹ * of 'a' * ((of 'b')⁻¹ * w n * of 'b')
 
---#print string.decidable_eq
-#eval test (w 1 * (of 'a') ^ (-2 : ℤ)) {'a'} (w 3)
-#eval P.lhs  (w 1 * (of 'a') ^ (2 : ℤ))
-  (golf_solve (w 1 * (of 'a') ^ (-2 : ℤ)) {'a'} (w 2)).iget
-#eval w 2
-#eval (of 'b')⁻¹ * (of 'a')^(2 : ℤ)
+-- --#print string.decidable_eq
+#eval (solve (w 1 * (of 'a') ^ (-2 : ℤ)) {'a'} (w 3)).iget.left.to_list.length
+-- #eval P.lhs  (w 1 * (of 'a') ^ (2 : ℤ))
+--   (golf_solve (w 1 * (of 'a') ^ (-2 : ℤ)) {'a'} (w 2)).iget
+-- #eval w 2
+-- #eval (of 'b')⁻¹ * (of 'a')^(2 : ℤ)
 
---#eval (golf_solve (w 1 * (of 'a') ^ (2 : ℤ)) {'a'} (w 2)) --HARD
-#eval choose_t_and_x (w 1 * (of 'a') ^ (-2 : ℤ)) {'a'} (vars (w 1 * (of 'a') ^ (-2 : ℤ)))
+-- --#eval (golf_solve (w 1 * (of 'a') ^ (2 : ℤ)) {'a'} (w 2)) --HARD
+-- #eval choose_t_and_x (w 1 * (of 'a') ^ (-2 : ℤ)) {'a'} (vars (w 1 * (of 'a') ^ (-2 : ℤ)))
 
-#eval (golf_solve
-  (w 1 * (of 'a') ^ (-2 : ℤ))
-  ⊥
-  ((of 'a') * w 3 * (of 'a')⁻¹ * (w 3)⁻¹)).iget.left.to_list.length
+-- #eval (golf_solve
+--   (w 1 * (of 'a') ^ (-2 : ℤ))
+--   ⊥
+--   ((of 'a') * w 3 * (of 'a')⁻¹ * (w 3)⁻¹)).iget.left.to_list.length
 
-open multiplicative
+-- open multiplicative
