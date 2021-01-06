@@ -25,7 +25,7 @@ meta def solve : Π ⦃ι : Type⦄ [decidable_eq ι]
       -- `guard (vars_w.all (∈ T)) >> return (inr w))` first,
       -- below line would break completeness.
     let vars_cyc_r := vars cyc_r in
-    --guard (vars_cyc_r.all (λ i, i ∈ vars_w ∨ i ∈ T)) >>
+    guard (vars_cyc_r.all (λ i, i ∈ vars_w ∨ i ∈ T)) >>
       -- heuristic; algorithm is still complete without this line below
       -- solve_by_subst seems to usually make it slower, but maybe worth doing anyway if it is
       -- a lot faster in some cases
@@ -53,17 +53,14 @@ match golf_solve r T w with
 | none := ff
 end
 
-open free_group
-
-def free_group.length {α : Type*} [decidable_eq α] : free_group α → ℕ :=
-λ w, (w.to_list.map (λ a : Σ i : α, C∞, a.2.to_add.nat_abs)).sum
-
 -- #eval let r := (of 0 * of 1 * (of 0)⁻¹ * (of 1) ^ (-2 : int)) in
 -- golf₁ r (solve r ∅ (of 0 ^ 10 * of 1 * of 0 ^ (-10 : int) * of 1 ^ (-1024 : int))).iget
 
+open free_group
+
 #eval let r := (of 0 * of 1 * (of 0)⁻¹ * (of 1) ^ (-2 : int)) in
-(golf₁ r (solve r ∅ ((of 0) ^ (-5 : int) * of 1 * (of 0) ^ 5 * of 1 * (of 0) ^
-  (-5 : int) * (of 1)⁻¹ * of 0 ^ 5 * (of 1)⁻¹)).iget).left.length
+(golf_solve r ∅ ((of 0) ^ (-5 : int) * of 1 * (of 0) ^ 5 * of 1 * (of 0) ^
+  (-5 : int) * (of 1)⁻¹ * of 0 ^ 5 * (of 1)⁻¹)).iget.left.length
 
 -- #eval let a := of 1 \ in let b := of 0 in
 --   let r := a * b * a⁻¹ * b ^ (-2 : int) in

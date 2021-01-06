@@ -22,6 +22,9 @@ def of (i : ι) : free_group ι := ⟨[⟨i, of_add 1⟩], reduced_singleton dec
 
 def of' (i : ι) : C∞ →* free_group ι := coprod.of i
 
+def length : free_group α → ℕ :=
+λ w, (w.to_list.map (λ a : Σ i : α, C∞, a.2.to_add.nat_abs)).sum
+
 @[simp] lemma cons_eq_of'_mul (l : list (Σ i : ι, C∞))
   (g : Σ i : ι, C∞) (h) :
   @eq (free_group ι) ⟨g :: l, h⟩ (of' g.1 g.2 * ⟨l, reduced_of_reduced_cons h⟩) :=

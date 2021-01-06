@@ -213,12 +213,33 @@ end tactic.interactive
 set_option pp.implicit true
 set_option profiler true
 
-example {G : Type*} [group G] {a b c : G}
-  (h : (a * b) * (b^2 * a * c) * (a * b)⁻¹ = (b^2 * a * c)^2) :
-  (a * b)^5 * (b^2 * a * c) * (a * b)^(-5 : int) * (b^2 * a * c) =
-  (b^2 * a * c) * (a * b)^5 * (b^2 * a * c) * (a * b)^(-5 : int) :=
+-- example {G : Type*} [group G] {a b c : G}
+--   (h : (a * b) * (b^2 * a * c) * (a * b)⁻¹ = (b^2 * a * c)^2) :
+--   (a * b)^5 * (b^2 * a * c) * (a * b)^(-5 : int) * (b^2 * a * c) =
+--   (b^2 * a * c) * (a * b)^5 * (b^2 * a * c) * (a * b)^(-5 : int) :=
+-- begin
+--   group1r using h,
+-- end
+
+example {G : Type} [group G] (a b c d : G) (h : a * b * c * a * b^2 = 1)
+  (h2 : a * b * d * a * b * c^(-2 : int) = 1) :
+  a * b * d * a * b = (b⁻¹ * a⁻¹ * b^(-2 : int) * a⁻¹)^(2 : int) :=
+have d = b⁻¹ * a⁻¹ * (a * b * c^(-2 : int))⁻¹, by group1r using h2,
 begin
+  subst this,
   group1r using h,
+
+end
+
+
+example {G : Type*} [group G] {a b c : G} (m : nat)
+  (h : a * b * a⁻¹ = b^2) (n : nat) : a ^ n * b = b ^ (2^n) * a^n :=
+begin
+  induction n with n ih,
+  { norm_num },
+  { simp only [pow_succ, mul_comm 2],
+    simp only [pow_mul], }
+
 end
 
 def W {G : Type*} [group G] (a b : G): ℕ → G
@@ -227,7 +248,7 @@ def W {G : Type*} [group G] (a b : G): ℕ → G
 
 example {G : Type*} [group G] (a b : G)
   (h : (b⁻¹ * a * b)⁻¹ * a * (b⁻¹ * a * b) = a ^ 2) :
-  W a b 3 = a ^ 16 :=
+  W a b 2 = a ^ 4 :=
 begin
   dunfold W,
   simp [mul_assoc, gpow_bit0, gpow_bit1],
