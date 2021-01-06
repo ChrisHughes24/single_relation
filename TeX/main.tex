@@ -20,6 +20,7 @@
 \usepackage{xifthen, xstring}
 \usepackage{ulem}
 \usepackage{xspace}
+\bibliographystyle{amsalpha}
 \makeatletter
 \font\uwavefont=lasyb10 scaled 652
 \DeclareSymbolFontAlphabet{\mathrm}    {operators}
@@ -77,6 +78,9 @@
 
 \usepackage[utf8x]{inputenc}
 \usepackage{amssymb}
+\usepackage{listings}
+\def\lstlanguagefiles{lstlean.tex}
+\lstset{language=lean}
 
 \usepackage{color}
 \definecolor{keywordcolor}{rgb}{0.7, 0.1, 0.1}   % red
@@ -144,64 +148,42 @@
 
 %%% The "real" document content comes below...
 
-\title{M4R}
-
+\title{A Lean tactic to solve the word problem in One Relator Groups}
+\author{Christopher Hughes}
 \begin{document}
 
-\section{Efficiency of the Algorithm}
+\maketitle
 
-The worst case performance of this algorithm is worse than any finite tower of exponents
-(cite something). The more relevant question is what is the typical performance.
+\textcolor{red}{This is an unfinished version of my fourth year project at Imperial.
+Although it is unfinished it hopefully gives some impression of what I have been doing.}
 
-\begin{defn}[Area of a Relation]
-For a finitely presented group $G := \langle S | R\rangle$, if $w \in F(S)$ is equal
-to $1$ in the quotient $G$, then we say it is a \textit{relation}.
-The \textit{area of a relation} is the smallest $N$ such that $w$ can be written
-in the form $\prod_{i=1}^N g_i r_i^{\epsilon_i} g_i^{-1}$, where $\epsilon_i = \pm 1$
-and $r_i \in R$ for all $i$.
-\end{defn}
 
-\begin{defn}[Dehn Function]
-For a finitely presented group $G := \langle S | R\rangle$, the Dehn function
-of the presentation $\text{Dehn}(n) \in \mathbb{N}$ is defined as the
-largest area of a relation of length at most $n$.
-\end{defn}
+\section{Introduction}
+This paper describes an implementation of Magnus' method for solving the
+word problem in one-relator groups \cite{mccool_schupp_1973}\cite{PutmanOneRelator}.
+This implementation is used as part of a Lean tactic to prove equalities in groups given a single equality as a hypothesis; for example, it might prove that $abab^2 = 1$ implies $ab = ba$.
 
-The Dehn function puts a lower bound on the complexity of the one-relator algorithm.
-The area of a relation is by definition the length of the shortest certificate
-that the algorithm might produce, so the complexity of the algorithm is bounded above by
-the Dehn function of a relator.
-The group $\langle a, b | b a b^{-1} a b a^{-1} b^{-1} = a^2\rangle$ is such that
-$\text{Dehn}(n)$ is worse than any finite tower of exponents. This means that the
-complexity of the one relator algorithm is also worse than any finite tower of
-exponents.
+In order to be used as part of a Lean tactic, the implementation of the
+algorithm must not only decide the problem, but also produce a proof certificate
+that can be converted into a Lean proof to be checked by Lean's kernel. The Lean
+tactic can prove that two words in a one relator group are equal, but not that they are unequal.
 
-Not all groups have such a fast growing Dehn function. For example, if the relator
-is of the form $r^k$ with $|k| \ne 1$ then $\text{Dehn}(n) \le n$.
-Similarly, even in groups with a rapidly increasing Dehn function,
-there are words that do not have a large area as the worst case.
-
-So, even though the worst case behaviour is very bad, there are still potentially many
-problems that the algorithm could solve in a practical amount of time. The aim of this
-implementation was to have good performance on relations with a small area.
-A typical Lean tactic state will usually be used on problems where the author knows
-the solution, but simply needs automation to write a formal proof of the solution.
-These relations will usually have a very small area. The aim of this implementation
-was that the algorithm should have good performance on relations with a small area,
-but makes no attempt to solve problems where the area of the relation is very large.
+This paper starts by defining and stating a few important results about both
+HNN extensions and free groups. Next, the proof certificate is described, and then
+the algorithm is described along with how to generate the proof certificates.
 
 \section{Free Group}
 
 The free group is implemented in Lean as the set of reduced words. An element of
 the free group over a type $S$ of letters is a list of pairs $S \times \mathbb{Z}$,
 the letter and the exponent.
-A list if the exponent part of every element of the list is non zero, and
+A list of the exponent part of every element of the list is non zero, and
 no two adjacent elements of the list have the same letter. The free group is the set of
 reduced lists.
 
 Multiplication of elements of the free group is implemented by appending the lists
 whilst replacing any adjacent occurrences of $(s, m)$ and $(s, n)$ with $(s, m + n)$, and removing
-any occurence of $(s, 0)$. Inversion is given by reversing the list and negating
+any occurrence of $(s, 0)$. Inversion is given by reversing the list and negating
 the exponent part of every pair. The identity is given by the empty list.
 
 \begin{defn}[Length]\label{length}
@@ -209,10 +191,29 @@ the exponent part of every pair. The identity is given by the empty list.
   parts of each element of the corresponding reduced list.
 \end{defn}
 
+\begin{defn}[Cyclically Reduced]\label{cycred}
+  A word $w$ in the free group is cyclically reduced if it cannot be made shorter
+  by conjugating.
+\end{defn}
+
+We state the following theorem \textit{Freiheitsatz}. This theorem is an important
+part of the correctness of Magnus' method. The proof is omitted.
+
+\begin{theorem}[Freiheitsatz]\label{freiheitsatz}
+  Suppose $F(S)$ is the free group over a set $S$ and $r$ is a a cyclically reduced
+  word, and $T \subset S$ is a set of letters such that $r$ cannot be written
+  using any letters in $T$. Then $T$ is a basis for a free subgroup of $F(S)$.
+  \cite{mccool_schupp_1973}
+\end{theorem}
+
 \section{HNN Extensions}\label{HNN}
 
+Magnus' method makes use of isomorphisms between one-relator groups and HNN extensions.
+In this section we define an HNN extension of a group relative to an
+an isomorphism between two subgroups.
+
 \begin{defn}[HNN Extension]
-  Given a group $G$ and subgroups $A$ and $B$ of $G$, and an isomorphism $\phi : A \to B$, we can define
+  Given a group $G,$ subgroups $A$ and $B$ of $G$, and an isomorphism $\phi: A \to B$, we can define
   the \textit{HNN extension} relative to $\phi$ of $G$. Let $\langle t \rangle$ be an infinite cyclic
   group generated by $t$. The HNN extension is the coproduct
   of $G$ and $\langle t \rangle$ quotiented
@@ -221,54 +222,53 @@ the exponent part of every pair. The identity is given by the empty list.
 
 \begin{defn}[HNN normal form]\label{HNNnormalform}
   Let $w = g_0t^{k_1}g_1t^{k_2}g_2 \cdots t^{k_n}g_n \in G \ast \langle t \rangle$.
-  Then $w$ is in \textit{HNN normal form} if or every $i$, $k_i \ne 0$, $k_i > 0$
+  Then $w$ is in \textit{HNN normal form} if for every $i$, $k_i \ne 0$, $k_i > 0$
   implies $g_i \notin A$ and $k_i < 0$ implies $g_i \notin B$.
 \end{defn}
 
-Note that the HNN normal form is not unique, two words $w, v \in G \ast \langle t \rangle$
+Note that the HNN normal form is not unique; two words $w, v \in G \ast \langle t \rangle$
 that are equal after mapping into the HNN extension and both in normal form might not be
-equal as elements of $G \ast \langle t \rangle$. However if $w \in G \ast \langle t \rangle $
+equal as elements of $G \ast \langle t \rangle$. However, if $w \in G \ast \langle t \rangle $
 maps to $1$ in the HNN extension
 then the following lemma tells us that the unique HNN normal form for $w$ is $1$.
 
 \begin{theorem}[Britton's Lemma]\label{britton}
   Let $w \in G \ast \langle t \rangle$.
-  If $w$ is in HNN normal form then $w$
-  and $w$ contains a $t$, then $w \ne 1$
-  cite (On Britton's theorem Charles Miller)
+  If $w$ is in HNN normal form and $w$ contains a $t$, then $w \ne 1$
+  \cite{CharlesF.Miller1968OBTA}
 \end{theorem}
 
 \begin{corol}\label{genbritton}
-  If a word $w$ meets the same conditions as in the statement of Britton's Lemma,
+  If a word $w$ meets the conditions of Britton's Lemma,
   then $w$ cannot be written as a $t$ free word.
 \end{corol}
-\textit{Proof of Corollary \ref{genbritton}} Suppose $w = g$ with $g \in G$,
+\begin{proof}
+Suppose $w = g$ with $g \in G$;
 then $g^{-1}w$ also meets the conditions
 in Theorem \ref{britton}, and therefore $gw^{-1}\ne 1$, contradicting $w = g$.
-
-The HNN normalization process given a word $w \in G \ast \langle t \rangle$
-replaces any occurences of $ta$ with $\phi(a)t$ when $a \in A$, and
-any occurence of $t^{-1}b$ with $\phi^{-1}(b)t^{-1}$ when $b \in B$.
-Applying this rewriting procedure will always produce a word $w'$ in HNN normal form,
+\end{proof}
+Given a word $w \in G \ast \langle t \rangle$, the HNN normalization process
+replaces any occurrences of $ta$ with $\phi(a)t$ when $a \in A$, and
+any occurrence of $t^{-1}b$ with $\phi^{-1}(b)t^{-1}$ when $b \in B$.
+Applying this rewriting procedure will always produce a word $w'$ in HNN normal form and
 such that $w$ and $w'$ are equal after quotienting by the defining relations
 of the HNN extension, $\{ta t^{-1} \phi(a^{-1}) | a \in A\}$.
 
 The HNN normalization process describes an algorithm for deciding
-equality if two words $w, v \in G \ast \langle t \rangle$ are equal
+whether two words $w, v \in G \ast \langle t \rangle$ are equal
 after mapping into the HNN extension, by applying the normalization procedure to
  $wv^{-1}$.
-In order to compute this algorithm, it is necessary to also
-have an algorithm for checking equality of elements of $G$ and
-to be able to check whether an element of $G$ is in either of the subgroups $A$ or $B$,
-and to be able to compute $\phi$.
+In order to compute this algorithm, it is also necessary to have an algorithm for checking equality
+of elements in $G$,
+for checking whether an element of $G$ is in either of the subgroups $A$ or $B$, and for computing $\phi$.
 
 \section{The Proof Certificate}
 
 An element of a group $G$ is equal to $1$ in the quotient by the normal closure
-of a relation $r$ if and only if it can be written as a product of conjugates of $r$ and $r^{-1}$.
-More precisely, there is a group homomorphism $\textit{Eval} : F(G) \to G$, from the free group
+of a relator $r$ if and only if it can be written as a product of conjugates of $r$ and $r^{-1}$.
+More precisely, there is a group homomorphism $\textit{Eval}: F(G) \to G$ from the free group
 over $G$ into $G$ that sends a basis element of $F(G)$,
-$g \in G$ to $grg^{-1} \in G$. The image of this map is exactly the kernel of the quotient map.
+$g \in G,$ to $grg^{-1} \in G$. The image of this map is exactly the kernel of the quotient map.
 Therefore an element $p$ of $F(G)$ such that $\text{Eval}(p) = w$
 can be seen as a witness that $w$ is in the kernel of the quotient map.
 
@@ -276,23 +276,23 @@ can be seen as a witness that $w$ is in the kernel of the quotient map.
   $\text{Eval}(r)$ is a map $F(G) \to G$, sending a basis element $g \in G$ to $grg^{-1}$.
 \end{defn}
 
-The proof certificate is a pair of a normalised word $w'$, and
-$p \in F(G)$ such that \newline $w = \text{Eval}(p) w'$.
+The certificate is a pair of a normalised word $w'$ and
+$p \in F(G)$ such that $w = \text{Eval}(p) w'$.
 
 \begin{defn}[P functor]
-  For any $g \in G$ define an automorphism $MulFree(g)$ of $F(G)$, by sending a basis
+  For any $g \in G$ define an automorphism $\text{MulFree}(g)$ of $F(G)$ by sending a basis
   element $h \in G$ to $gh$. This defines a left action of $G$ on $F(G)$.
   Define the group $P(G)$ to be
   \begin{equation}
   P(G) := F(G) \rtimes_{MulFree} G
   \end{equation}
-  This group has multiplication given by $(a, b) (a', b') = (a MulFree(b)(a'), bb')$
+  This group has multiplication given by $(a, b) (a', b') = (a \text{MulFree}(b)(a'), bb')$
 \end{defn}
 
 \begin{subdef}[lhs and rhs]
-Define two group homomorphisms from $P$ into $G$.
-$\text{rhs}$ is the obvious map sending $(a, b)$ to $b$.
-$\text{lhs}$ is the map sending $(a,b)$ to $\text{Eval}(a)b$.
+Define two group homomorphisms from $P$ into $G$: let
+$\text{rhs}$ be the obvious map sending $(a, b)$ to $b$ and let
+$\text{lhs}$ be the map sending $(a,b)$ to $\text{Eval}(a)b$.
 Since $\text{Eval}(a)$ is in the kernel of the quotient map,
 for any $p\in P(G)$, $\text{lhs}(p)$ and $\text{rhs}(p)$ are equal in the quotient by $r$.
 Therefore an element $p$ of $P(G)$ can be regarded as a certificate of the congruence
@@ -300,23 +300,23 @@ $\text{lhs}(p) \equiv \text{rhs}(p) \text{ mod } r$.
 \end{subdef}
 
 Because both $\text{lhs}$ and $\text{rhs}$ are group homomorphisms, if $p \in P(G)$ is a certificate
-of the congruence $a \equiv b \text{ mod } r$, and $q$ is a certificate of the congruence
+of the congruence $a \equiv b \text{ mod } r$ and $q$ is a certificate of the congruence
 $c \equiv d \text{ mod } r$, then $pq$ is a certificate of the congruence $ac \equiv bd \text{ mod } r$.
-Similarly $p^{-1}$ is a certificate of the congruence $a^{-1} \equiv b^{-1} \text{ mod } r$.
+Similarly, $p^{-1}$ is a certificate of the congruence $a^{-1} \equiv b^{-1} \text{ mod } r$.
 
 \begin{subdef}($P$ is functorial).
-  Given a homomorphism $f : G \to H$,
-  functoriality of the free group gives a natural map $F(f) : F(G) \to F(H)$.
-  Define the map $P(f) : P(G) \to P(H)$ to send $(p, b) \in P(G)$ to $(F(f)(p), f(b)) \in P(H)$.
+  Given a homomorphism $f: G \to H$,
+  functoriality of the free group gives a natural map $F(f): F(G) \to F(H)$.
+  Define the map $P(f): P(G) \to P(H)$ to send $(p, b) \in P(G)$ to $(F(f)(p), f(b)) \in P(H)$.
   Given a certificate of the congruence $a \equiv b \text{ mod } r$, this map returns
   a certificate of the congruence $f(a) \equiv f(b) \text{ mod } f(r)$.
 \end{subdef}
 
 \begin{subdef}(Trans)
-  Given $p,q \in P(G)$ such that $p$ is a certificate of the congruence $a = b \text{ mod } r$,
-  and $q$ is a certificate of the congruence $b = c \text{ mod } r$, then it is possible to define
+  Given $p,q \in P(G)$ such that $p$ is a certificate of the congruence $a = b \text{ mod } r$
+  and $q$ is a certificate of the congruence $b = c \text{ mod } r$, it is possible to define
   $\text{Trans}(p,q)$ such that $\text{Trans}(p,q)$ is a certificate of the congruence $a = c \text{ mod } r$.
-  If $p = (p_1, p_2)$, and $q = (q_1, q_2)$, then $\text{Trans}(p,q) = (p_1q_1, q_2)$.
+  If $p = (p_1, p_2)$ and $q = (q_1, q_2)$, then $\text{Trans}(p,q) = (p_1q_1, q_2)$.
 \end{subdef}
 
 \begin{subdef}(Refl)
@@ -324,44 +324,97 @@ Similarly $p^{-1}$ is a certificate of the congruence $a^{-1} \equiv b^{-1} \tex
   this $\text{Refl}(a)$.
 \end{subdef}
 
-It is also possible to define $\textit{Symm}$, such that $\text{lhs}(\text{Symm}(p)) = \text{rhs}(p)$
+It is also possible to define $\textit{Symm}$ such that $\text{lhs}(\text{Symm}(p)) = \text{rhs}(p)$
 and vice versa, but this is not used in the algorithm.
 
 \begin{subdef}(ChangeRel)
-  Given a certificate $p$ of the congruence $a \equiv b \text{ mod } r$, then it is possible
+  Given a certificate $p$ of the congruence $a \equiv b \text{ mod } r$, it is possible
   to make a certificate of the congruence $a \equiv b \text{ mod } g r g^{-1}$ for any $g \in G$.
-  Let for any $g \in G$ let $\phi(g) : F(G) \to F(G)$ be the map sending $h \in G$ to
-  $hg$. The $\text{ChangeRel}(g,(p_1,p_2))$ is defined to be $(\phi(g)(p_1), p_2)$ for
+  For any $g \in G,$ let $\phi(g): F(G) \to F(G)$ be the map sending $h \in G$ to
+  $hg$. Then $\text{ChangeRel}(g,(p_1,p_2))$ is defined to be $(\phi(g)(p_1), p_2)$ for
   $g \in G$ and $(p_1, p_2) \in P(G)$.
 \end{subdef}
 
+\section{Adding and Removing Subscripts}
+
+Given a letter $t$ in the free group over a set $S$, we can define a map into a
+semidirect product.
+
+\begin{defn}[ChangeSubscript]\label{csub}
+  Define a homomorphism ChangeSubscript from $\mathbb{Z}$ to the automorphism
+  group of $F(S \times \mathbb{Z})$. If $(x, n) \in S \times \mathbb{Z}$ is a basis
+  element of the free group, then $\text{ChangeSubscript}(m)(x, n) = (x, m + n)$.
+\end{defn}
+
+\begin{defn}[AddSubscripts]\label{AddSubscripts}
+  There is a homomorphism AddSubscripts($t$) from $F(S)$ into $F(S \times \mathbb{Z})
+  \rtimes_{\text{ChangeSubscript}} \mathbb{Z}$ sending a basis element $s \in S$ to
+  $(s, 0) \in F(S \times \mathbb{Z})$ when $s \ne t$ and sending $t$ to
+  $(1, 1_\mathbb{Z}) \in F(S \times \mathbb{Z}) \rtimes \mathbb{Z}$. Loosely, this map
+  replaces occurrences of $t^n a t^{-n}$ with $a_t$.
+\end{defn}
+
+The map AddSubscripts is only used during the algorithm on words $w$ when the sum of the
+exponents of $t$ in $w$ is zero, meaning the result will always be of the form
+$(w', 0_{\mathbb{Z}})$.
+
+\begin{defn}[RemoveSubscripts]
+  RemoveSubscripts sends a basis element of $F(S\times \mathbb{Z})$,  $(s, n) \in S\times \mathbb{Z},$
+  to $t^n s t^{-n}$.
+\end{defn}
+RemoveSubscripts is a group homomorphism and if $r$ is a word such that $\text{AddSubscripts}(r)$ is of the form $(r', 0_\mathbb{Z})$,
+then $\text{RemoveSubscripts}(r')=r$.
+
 \section{Magnus' Method}
 
-I describe an algorithm that decides given an element $w \in F(S)$ of a free group,
-and a relation $r$ in the free group, and a subgroup $T$ of the free group
-generated by a set of letters, whether $\overline{w} \in F(s) / r \in \overline{T}$,
+Given an element $w \in F(S)$ of a free group, a relation $r$ in the free group, and a subgroup of the free group
+generated by a set of letters $T$,
+we write $\overline {w}$ for the corresponding element in $F(S) / r$
+and $\overline{T}$ for the image of the subgroup generated by $T$ in $F(S)/r$.
+
+The algorithm decides whether $\overline{w} \in F(s) / r$ is in $\overline{T}$,
 and returns an element $w'$ such that $\overline{w'} = \overline{w}$ and $w' \in T$.
 
-Assume that $r$ is cyclically reduced, i.e. none
-of its conjugates are shorter than it, and that $r$ contains a letter not in $T$.
-The case when $T$ contains all letters of $r$ is handled in Section (fill this in).
+We describe the implementation of a function $\textit{Solve}$ whose arguments are a word $w$
+in the free group $F(S)$, a relator $r \in F(S)$,
+and a subset $T$ of $S$. If there is a word $w' \in F(S)$
+such that $w' \in T$ and $\overline{w} \in F(S) / r$ is
+equal to $\overline{W'}$, then it returns an element $p$ of $P(F(S))$
+such that $\text{lhs}(p) = w$ and $\text{rhs}(p) = w'$. It terminates
+without returning anything if there is no such word.
 
-\subsection{Base Case}
+Without loss of generality we can assume $r$ is cyclically reduced and
+conjugate $r$ if this is not the case. We can use $\text{ChangeRel}$,
+to make the correct proof certificate after conjugating $r$.
 
+
+
+\subsection{Case 1: All letters in $r$ are in $T$}\label{allinT}
+For this case it is helpful to consider the group $F(S)$ as the
+coproduct of the subgroup generated by the letters in $T$ and
+the subgroup generated by the rest of the letters:
+$F(S) \cong F(T) \ast F(S \backslash T)$.
+
+Since every letter in $r$ is also in $T$ then $F(S) / r \cong F(T) / r \ast F(S \backslash T)$.
+An element of $F(S)$ can therefore be written in the form
+$w_0v_0w_1v_1 \dots w_nv_n$, where $w_i \in F(T)$ and $v_i \in F(S \backslash T)$.
+The problem can be reduced to deciding whether an element of $w_i \in F(T)$ is equal to an element of the quotient.
+To decide the word problem whenever $\overline{w_i} = 1$, perform this substitution and
+then check whether the resulting word in $F(T) \ast F(S \backslash T)$ is in $T$.
+
+\subsection{Case 2: There is a letter in $r$ that is not in $T$}
+\subsubsection{Base Case}
 The base case is the case where the relation $r$ is of the form $a^n$ with
 $n \in \mathbb{Z}$, and $a$ a letter in $S$. It is straightforward to decide
 the word problem in this group, since $F(S) / a^n$ is isomorphic
 to the binary coproduct of $F(S \backslash \{a\})$ and $\mathbb{Z}/n\mathbb{Z}$.
 
-\subsection{Case 1: Letter with exponent sum zero}\label{expsumzero}
-There are two cases to consider, the first case is when there is a letter $t$
-with exponent sum equal to zero in $r$.
-
-For this case apply the map $\text{AddSubscripts}(t)$ (Definition \ref{AddSubscripts}) to $r$.
+\subsubsection{Case 2a: Letter with exponent sum zero}\label{expsumzero}
+Apply the map $\text{AddSubscripts}(t)$ (Definition \ref{AddSubscripts}) to $r$.
 Since the exponent sum of $t$ is equal to zero, $\text{AddSubscripts}(t)(r)$ is
 of the form $(r', 0_\mathbb{Z})$.
 The length (Definition \ref{length}) of the relation $r' \in F(S \times \mathbb{Z})$
-is less then the length of $r$.
+is less than the length of $r$.
 If $t \notin T$ and the exponent sum of $t$ in $w$ is not zero,
 then $\overline{w} \notin \overline{T}$.
 If $t \in T$, then $w$ can be written in the
@@ -369,68 +422,65 @@ form $w' t^n$ where $t$ has exponent sum zero in $w'$, and $w'$ is a word in $T$
 and only if $\overline{w} \in \overline{T}$.
 
 A naive approach would be to apply $\text{AddSubscripts}(t)$ to $w$, and solve the word
-problem in $F(S \times \mathbb{Z})$ with respect to $r'$. However, this approach does not work
-because the image of the normal closure of $r'$ under $\text{AddSubscripts}(t)$ restricted
-to $F(S \times \mathbb{Z})$ is not the normal closure of $r'$, it is the normal closure of
-the set of all relations of the form $\text{ChangeSubscript(n)(r')}$ for every $n$.
+problem in $F(S \times \mathbb{Z})$ with respect to $r'$. However, the image of the normal closure of $r'$ under $\text{AddSubscripts}(t)$ restricted
+to $F(S \times \mathbb{Z})$ is not the normal closure of $r'$; it is the normal closure of
+the set of all relations of the form $\text{ChangeSubscript}(n)(r')$ for every $n$.
 
-We can assume $r$ is \textit{cyclically reduced} (ref Freiheitsatz), meaning $r$
-is at least as short as any of its conjugates, and conjugate $r$ if this is not the case.
-
-Pick $x \in S$ such that $x \ne t$ and if $t \in T$ then $x \notin T$. $x$ must also
-be a letter in $r$. We can assume that the first letter of $r$ is
-$x$, since if it is not it can be $r$ can be conjugated until the first letter is $x$.
+Pick $x \in S$ such that $x \ne t,$
+  $x$ is a letter in $r$ and such that $t \in T$ implies $x \notin T$.
+  If this is not possible, then apply the procedure in Section \ref{allinT}.
+  We can assume that the first letter of $r$ is
+$x$, since otherwise $r$ can be conjugated until the first letter is $x$.
 Let $a$ and $b$ be respectively the
 smallest and greatest subscript of $x$ in $r'$. Let $S'$ be the set
-$\{i \in S \backslash \{t\} \times \mathbb{Z} \ | \ i \ne x \vee a \le i \le b \}$.
+$\{(i_1, i_2) \in S \backslash \{t\} \times \mathbb{Z} \ | \ i_1 \ne x \vee a \le i_2 \le b \}$.
 
-Define two subsets of $S'$, $A := S' \backslash \{x_b\}$, and $B := S' \backslash \{x_a\}$.
-Then there is an isomorphism $\phi$ between these two subgroups given by
-$\text{ChangeSubscript}(1)$.
-The group $F(S) / r$ is isomorphic to the HNN extension of $F(S') / r'$ relative to $\phi$.
+Define two subsets of $S'$ by $A := S' \backslash \{x_b\}$ and $B := S' \backslash \{x_a\}$.
+Then there is an isomorphism $\phi$ between $A$ and $B$ given by
+$\phi := \text{ChangeSubscript}(1)$.
+We claim the group $F(S) / r$ is isomorphic to the HNN extension of $F(S') / r'$ relative to $\phi$.
 
-The isomorphism $\alpha$ from $F(S)$ to the HNN extension sends a letter
+The homomorphism $\alpha$ from $F(S)/r$ to the HNN extension sends a letter
 $s \in S \backslash \{t\}$ to $s_0$ and
 the letter $t$ to the stable letter $t$ of the HNN extension. Since $t s_i t^{-1} = s_{i+1}$ in
-the HNN extension for $s_i \in S'$, $r$ is sent to $r'$ by this map so $\alpha$ is well defined
+the HNN extension for $s_i \in S'$, $r$ is sent to $r'$ by this map so that $\alpha$ is well defined
 on the quotient.
 
-$\beta$ sends $s_i \in S'$ to $t^{i} s t^{-i}$ and the stable letter $t$ to $t$.
+Now let $\beta$ send $s_i \in S'$ to $t^{i} s t^{-i}$ and the stable letter $t$ to $t$.
 Again, $r'$ is sent to $r$ by $\beta$, and $\beta (t s_i t^{-1}) = t^{i+1} s t^{-(i+1)} =
 \beta (\phi (s_i))$ so $\beta$ preserves the defining relations of the HNN extension and it
-is well defined. It can be checked $\beta$ is a two sided inverse to $\alpha$ and so $\alpha$
+is well defined. It can be checked $\beta$ is a two sided inverse to $\alpha$, and thus $\alpha$
 is an isomorphism.
 
-We then apply the HNN normalization procedure, described in detail in Section \ref{HNNnorm}.
-We chose $x$ and $t$ such that either $x \notin T$ or $t \notin T$, and both $x$ and $t$
-are in $r$. If there are no such letters we apply the procedure in Section (fill this in).
+We then apply the HNN normalization procedure, which will be described in detail in Section
+\ref{HNNnorm}. We chose $x$ and $t$ such that either $x \notin T$ or $t \notin T$.
 
-In either case if $\overline{w}$ can be written as a word in $T$,
+In either case, if $\overline{w}$ can be written as a word in $T$,
 then an HNN normal form of $w$ will be of the form $g t^n$
 with $g \in F(S') / r'$. In the case $x \notin T$, then because any word in
-$F(S')$ not containing $x_i$ must be in $A \cap B$, there can be no occurence of
-$tg$ with $g \notin A$ or $t^{-1}g$
+$F(S')$ not containing $x_i$ must be in $A \cap B$, there can be no occurrence of
+$tg$ with $g \notin A$ or $t^{-1}g.$
 If $t \notin T$, then it must be possible to write $w$ without $t$, so in fact it can be normalized
 to $g \in F(S') / r'$. We can check whether any words in $F(S') / r'$ are in the subgroups
 generated by $A$ or $B$ using
 Magnus' method again for the shorter relation $r'$, and rewrite these words using the letters
 in $A$ or $B$ when possible.
 
-Once in the form $g t^n$ with $g \in F(S')$, it is enough to check that
-$\overline{\text{RemoveSubscript}(g)}$ can be written as a word in $T$.
+Once in the form $g t^n$ with $g \in F(S')$, it is enough to check that \newline
+$\overline{\text{RemoveSubscripts}(g)}$ can be written as a word in $T$.
 If $t \in T$ then this amounts to solving the word problem for $r'$
 and the set $T' := \{ s_i \in S' | s \in T, i \in \mathbb{Z} \}$. If $t \notin T$,
 this amounts to checking that $n = 0$ and solving the word problem for
-$r'$ and the set $T' := \{s_0 \in S' | s \in T\}$.
+$r'$ and the set $T' := \{s_0 \in S' | s \in T\}$.\\
 
-\subsection{Case 2: No Letter with exponent sum zero}
+\textbf{Case 2.b: No letter with exponent sum zero}\\
 
 If there is no letter $t$ in $r$ with exponent sum zero, then choose $x$
-and $t$ such $x \ne t$ and such that if $t \notin T$ then $x \notin T$.
+and $t$ such that $x \ne t$ and such that if $t \notin T$ then $x \notin T$.
 Let $\alpha$ be the exponent sum
-of $t$ in $r$, and $\beta$ the exponent sum of $x$.
+of $t$ in $r$ and let $\beta$ be the exponent sum of $x$.
 
-Then define the map $\psi$ on $F(S)$ defined for $s \in S$ by
+Then define the map $\psi$ on $F(S)$ by
 
 \begin{equation}
   \psi(s) =
@@ -441,15 +491,15 @@ Then define the map $\psi$ on $F(S)$ defined for $s \in S$ by
   \end{cases}
 \end{equation}
 
-The map $\psi$ can be descended to a map $\overline{\psi} : F(S) / r$ to $F(s) / \psi(r)$. The map
+The map $\psi$ descends to a map $\overline{\psi}: F(S) / r \to F(s) / \psi(r)$. The map
 $\psi$ is equal to $\psi_1 \circ \psi_2$,
-where $\psi_2$ and $\psi_1$ are defined as follows.
+where $\psi_2$ and $\psi_1$ are defined as follows:
 
 \begin{equation}
   \psi_1(s) =
   \begin{cases}
      xt^{-\alpha} &\text{if } s = x \\
-     s & \text{otherwise}
+     s & \text{otherwise.}
   \end{cases}
 \end{equation}
 
@@ -461,64 +511,33 @@ where $\psi_2$ and $\psi_1$ are defined as follows.
   \end{cases}
 \end{equation}
 
-$\overline{\psi_1} : F(S) / r \to F(r) / \psi_1(r)$ is an isomorphism,
-the inverse given by sending $x$ to $xt^\alpha$.
-$\overline{\psi_2} : F(S) / r$ to $F(r) / \psi_2(r)$
+We have that $\overline{\psi_1}: F(S) / r \to F(r) / \psi_1(r)$ is an isomorphism, with inverse given by sending $x$ to $xt^\alpha$. Meanwhile,
+$\overline{\psi_2}: F(S) / r$ to $F(r) / \psi_2(r)$
 is also injective.
 This is proven constructively in Section \ref{powproof}.
-So $\overline{\psi} : F(S) / r$ to $F(r) / \psi(r)$ is injective.
+Hence $\overline{\psi}: F(S) / r$ to $F(r) / \psi(r)$ is injective.
 
 The image of the subgroup generated
 by $T$ under $\psi$ might not be the subgroup generated by a set of letters, but it is
 always contained in $T$.
-By the Freiheitsatz if $\overline{\psi(w)}$ can be written
+By the Freiheitsatz, if $\overline{\psi(w)}$ can be written
 as a word $w'$ using letters in $T$ then this solution is unique.
 Therefore, to check if $\overline{\psi(w)}$ is in the subgroup generated by
-$\overline{\psi(T)}$, you can first write it as a word in $w' \in T $ if possible,
+$\overline{\psi(T)}$, one can first write it as a word in $w' \in T $ if possible,
 and then check if $w'$ is in $\psi(T)$.
 The exponent sum of $t$ in $\psi(r)$ is $0$, so the problem of checking
 if $\psi(w)$ can be written as a word in $T$ can be solved using
 the method described in Section \ref{expsumzero}.
 
 If $t \in T$ then $\psi(T)$ is generated by
-$T' := T \backslash \{t\} \cup t^\beta$. By the Freiheitsatz if $\psi(w)$ can be written
+$T' := T \backslash \{t\} \cup t^\beta$. By the Freiheitsatz, if $\psi(w)$ can be written
 as a word $w'$ using letters in $T$ then this solution is unique. Therefore,
-to check if $\psi(w)$ is in the subgroup generated by $T'$, you can first
-write it as a word in $w' in T$ if possible, and then check that for every
-occurence of $t^k$ in $w'$, $k$ is a multiple of $\alpha$.
+to check if $\psi(w)$ is in the subgroup generated by $T'$, one can first
+write it as a word in $w'$ in $T$ if possible, and then check that for every
+occurrence of $t^k$ in $w'$, $k$ is a multiple of $\alpha$.
 
 If $t \notin T$, then  $\psi(T) = T$.
 
-\subsection{Adding and Removing Subscripts}
-
-Given a letter $t$ in the free group over a set $S$, we can define a map into a
-semidirect product.
-
-\begin{defn}[ChangeSubscript]\label{csub}
-  Define a homomorphism \textit{ChangeSubscript} from $\mathbb{Z}$ to the automorphism
-  group of $F(S \times \mathbb{Z})$. If $(x, n) \in S \times mathbb{Z}$ is a basis
-  element of the free group, then $\text{AddBasis}(m)(x, n) = (x, m + n)$.
-\end{defn}
-
-\begin{defn}[AddSubscripts]\label{AddSubscripts}
-  There is a homomorphism $AddSubscripts(t)$ from $F(S)$ into $F(S \times \mathbb{Z})
-  \rtimes_{\text{ChangeSubscript}} \mathbb{Z}$ sending a basis element $s \in S$ to
-  $(s, 0) \in F(S \times \mathbb{Z})$, when $s \ne t$ and sending $t$ to
-  $(1, 1_\mathbb{Z}) \in F(S \times \mathbb{Z}) \rtimes \mathbb{Z}$. Loosely, this map
-  replace occurence of $t^n a t^{-n}$ with $a_t$
-\end{defn}
-
-The map \textit{AddSubscripts} is only used during the algorithm on words $w$ when the sum of the
-exponents of $t$ in $w$ is zero, meaning the result will always be of the form
-$(w', 0_{\mathbb{Z}})$.
-
-\begin{defn}[RemoveSubscripts]
-  \textit{RemoveSubscripts} send a basis element of $F(S\times \mathbb{Z})$,  $(s, n) \in S\times \mathbb{Z}$
-  to $t^n s t^{-n}$.
-\end{defn}
-\textit{RemoveSubscripts} is a group homomorphism and if $r$ is a word such that
-of $\text{Addsubscripts}(r)$ is of the form $(r', 0_\mathbb{Z})$,
-then $\text{RemoveSubscripts}(r')=r$.
 
 % \subsection{Base Case}\label{BaseCase}
 
@@ -532,7 +551,7 @@ then $\text{RemoveSubscripts}(r')=r$.
 % $w \in F(S)$, and a normalized proof word with proof $p \in P(F(S))$, and returns
 % a word $q \in P(F(S))$, such that $\text{lhs}(q) = w\text{lhs}(p)$ and
 % $\text{rhs}(q)$ is a normalization of $w \text{rhs}(p)$. By normalized,
-% we mean that there is no occurence of $a^k$ where $k \ne 0$ is a multiple of $n$.
+% we mean that there is no occurrence of $a^k$ where $k \ne 0$ is a multiple of $n$.
 
 % We can normalize the word $a^k$ where $k$ is a multiple of $n$ to
 % $([1]^(n / k), 1) \in P(F(S))$, where $[1] \in F(F(S))$, is the basis element
@@ -564,17 +583,17 @@ cyclic group generated by $t$.
   \end{equation}
 \end{defn}
 
-It is important that $a \le 0 \le b$, to ensure that this map does map into
-$F(S' \times \langle t \rangle)$.
+It is important that $a \le 0 \le b$, to ensure that the image
+of this map is contained in $F(S' \times \langle t \rangle)$.
 
 Then apply the HNN normalization procedure. For this particular HNN extension
 $\phi$ is \textit{ChangeSubscript} (Definition \ref{csub}).
 We work in the $F(S') \ast \langle t \rangle$, and apply the following rewriting rules.
 
-For each occurence of $tw$ where there is an $a \in A$ such that
+For each occurrence of $tw$ where there is an $a \in A$ such that
 $\overline{a} = \overline{w}$ replace $tw$ with $\phi(a)t$.
 
-For each occurence of $t^{-1}w$ where there is an $b \in B$ such that
+For each occurrence of $t^{-1}w$ where there is an $b \in B$ such that
 $\overline{b} = \overline{w}$ replace $tw$ with $\phi^{-1}(b)t^{-1}$.
 
 We can use $\textit{Solve}$ to check whether there is such $a$ and $b$ with
@@ -601,7 +620,7 @@ these properties.
 
 \subsubsection{Computing Proof Certificates}\label{HNNPC}
 
-To compute proof certificates a slightly modification of the procedure described in Section
+To compute proof certificates a slight modification of the procedure described in Section
 \ref{HNNnorm} is used.
 
 First define a modification of Definition \ref{tocoprod}, from $F(S)$ into the binary
@@ -626,7 +645,7 @@ $P(F(S))$. This map is not computed as part of the algorithm, but is useful to d
 \end{defn}
 
 The aim is to define a normalization process into that turns a word $w \in F(S)$ into
-word $n \in P(F(S \times \mathbb{Z})) \ast \langle t \rangle$,
+word $n \in P(F(S \times \mathbb{Z})) \ast \langle t \rangle$
 such that after applying \textit{rhs}, the same word is returned as in the
 normalization process described in Section \ref{HNNnorm}. We also want
 $\text{lhs}(Z(n))$ to be equal to $w$, so we end up with a certificate that $w$
@@ -642,22 +661,21 @@ is equal to some normalized word.
 
 \textit{conjP} has the property that
 $\text{lhs}(Z(\text{conjP}(k, p))) = t^k \text{lhs}(Z(p))t^{-k}$,
-and similarly for \textit{rhs}. Note that $\textit{conjP}$ maps into $P(F(S \times \mathbb{Z}))$,
+and similarly for \textit{rhs}. Note that $\textit{conjP}$ maps into $P(F(S \times \mathbb{Z}))$
 and not $P(F(S'))$, although $\textit{rhs}$ of every word computed
 will be in $F(S')$.
 
 The procedure described in Section \ref{HNNnorm}
-replaced each occurence of $wt^{-1}$ with \newline $t^{-1}\text{ChangeSubscript}(-1)(a)$,
+replaced each occurrence of $wt^{-1}$ with \newline $t^{-1}\text{ChangeSubscript}(-1)(a)$,
 where $a \in A$ was a word equal to $w \in F(S')$ in the quotient $F(S') / r'$.
 
-To compute the certificates apply the following rewriting procedure.
-
-For each occurence of $tp$ where $\overline{\text{rhs}(p)} = \overline{a}$ for
+To compute the certificates apply the following rewriting procedure:
+for each occurrence of $tp$ where $\overline{\text{rhs}(p)} = \overline{a}$ for
 some $a \in A$, and $q$ is a certificate of this equality,
 replace $tp$ with $\text{ConjP}(1, \text{Trans}(p, q))t$
 
-Similarly for each occurence of $t^{-1}p$ where $\overline{\text{rhs}(p)} = \overline{b}$ for
-some $b \in B$, and $q$ is a certificate of this equality,
+Similarly, for each occurrence of $t^{-1}p$ where $\overline{\text{rhs}(p)} = \overline{b}$ for
+some $b \in B$ and $q$ is a certificate of this equality,
 replace $t^{-1}p$ with $\text{ConjP}(-1, \text{Trans}(p, q))t^{-1}$
 
 \subsubsection{Performance}
@@ -666,22 +684,22 @@ The order in which the rewriting rules are applied can have a big effect on the 
 of the algorithm.
 
 \begin{exmpl}\label{ltrbad}
-As an example, suppose $r' = {x_1y_1}{x_0y_0}^{-2}$, and
-$w = t^n x_1y_1 t y_0^{-1}x_0^{-1}$, where $n > 0$.
-Then $S'$ is the set $\{x_0, x_1\} \cup \{y_i | i \in \mathbb{Z}\}$,
+Suppose $r' = {x_1}{x_0}^{-2}$ and
+$w = t^n x_1 t x_0^{-1}$, where $n > 0$.
+Then $S'$ is the set $\{x_0, x_1\}$,
 $A$ is the subgroup generated by $S' \backslash x_1$ and
 $B$ the subgroup generated by $S' \backslash x_0$.
-Suppose I first make the substitution $ty_0^{-1}x_0^{-1}$ to $y_1^{-1}x_1^{-1} t$,
-then $w$ becomes $t^{n}x_1y_1y_1^{-1}x_1^{-1}t = t^{n+1}$.
+Suppose we first make the substitution $tx_0^{-1}$ to $x_1^{-1} t$;
+then $w$ becomes $t^{n}x_1x_1^{-1}t = t^{n+1}$.
 This is in HNN normal form.
 
 Now consider trying the HNN normalization process from the left.
-For any $m \in \mathbb{Z}$, $(x_1y_1)^m = (x_0y_0)^{2m}$,
-so the HNN normalization proces will rewrite $t(x_1y_1)^m to (x_1y_1)^{2m}t$.
-Therefore $t^nx_1y_1$ will be rewritten to $(x_1y_1)^{2^n}t^n$.
-So $w$ gets rewritten to $(x_1y_1)^{2^n} t^{n+1} y_0^{-1}x_0^{-1}$,
+For any $m \in \mathbb{Z}$, $x_1^m = x_0^{2m}$,
+so the HNN normalization proces will rewrite $tx_1^m to x_1^{2m}t$.
+Therefore $t^nx_1$ will be rewritten to $x_1^{2^n}t^n$.
+Hence $w$ gets rewritten to $x_1^{2^n} t^{n+1} x_0^{-1}$,
 which then will eventually be rewritten to $t^{n+1}$. The maximum length
-of $w$ during the normalization process became was greater than $2^n$.
+of $w$ during the normalization process was greater than $2^n$.
 \end{exmpl}
 
 Applying one rewrite rule first
@@ -718,36 +736,64 @@ algorithm can fail straight away without attempting more rewrites.
 % a recursive call to \textit{Solve}.
 \end{exmpl}
 
+\begin{exmpl}{unknown}
+  Consider the word $tw_0t^{-1}w_1tw_2$. Here it is not possible to determine the best order without
+  considering what particular words $w_0, w_1, w_2$ are. Starting in the middle gives the word
+  $tw_0\phi(b)w_2$, and since $w_2$ might not be in $B$, the first problem may have become easier.
+
+  However starting on the left with the pair $tw_0$
+  might also be the best thing to do, since starting on the left would
+  make the second problem easier, giving the word $\phi()bw_1 t w_2$.
+\end{exmpl}
+
 \begin{exmpl}\label{ltrbad2}
   Consider the word $tw_0tw_1$. Here it is best to apply the right hand rewrite first.
   Applying the left hand rewrite first will not make the right hand one any easier; the $t$'s will
   not cancel, but applying the right hand one first could make the left hand problem easier.
   After applying the right hand rewrite, the word would become $tw_0\phi(a)t$, where $a \in A$
   and $\overline{a} = \overline{w_1}$. It is possible that it is easier to check $\overline{w_0\phi(a)} \in \overline{A}$
-  than to check both $\overline{w_0} \in \overline{A}$ and $\overline{phi}(a) \in \overline{A}$. In Example
-  \ref{ltrbad}, $w_0\phi(a) = 1$, which is clearly much easier.
+  than to check both $\overline{w_0} \in \overline{A}$ and $\overline{phi}(a) \in \overline{A}$.
 \end{exmpl}
 
 Example \ref{rtlbad} and Example \ref{ltrbad2} give an optimal normalization order
-for simple examples. It is possible to generalize this to more complicated examples.
+for simple examples, with only two occurrences of a power of $t$.
+It is not possible to generalize this to more complicated examples,
+but some sensible heuristics are possible.
+
+Consider a word $W := w_0t^{n_1}w_1 \dots t^{n_{k-1}}w_{k-1}t^{n_k}w_k$, and the
+following two sets
+
+\begin{equation*}
+  \begin{aligned}
+    R^{+} := \{ i | \forall j, \sum_0^i n_i \le \sum_0^j n_j\} \\
+    R^{-} := \{ i | \forall j, \sum_0^i n_i \ge \sum_0^j n_j\}
+  \end{aligned}
+\end{equation*}
+
+Let $I$ be the smaller of the two intervals $[\min R^+, \max R^+]$ and
+$[\min R^{-}, \max R^-]$.
+
+Within the interval $I$, let $Q$ be the set of pairs $t^{n_i}w_i$ such that
+$\text{sgn}(n_i) \ne \text{sgn}(n_{i+1})$.
+
+Then $Q$ has the property that if there are no applicable rewrites
+in the set $Q$, then the word cannot be put into the form $wt^n$ with $w \in F(S')$.
+
+The rewriting procedure always chooses a rewrite within the set $Q$, prioritising
+pairs $w_it^{n_i}$ where $w_i$ has the least occurences of letters not in
+the set $T$, (likely to be the fastest problems to solve).
+This heuristic mitigates the exponential behaviour described in Example \ref{ltrbad}
+
+
 
 % \begin{lemma}\label{peakshrink}
-%   $W := w_0t^{n_1}w_1 \dots t^{n_{k-1}}w_{k-1}t^{n_k}w_k$. Then applying HNN normalization
+%  . Then applying HNN normalization
 %   rules to $W$ can never increase the value $\max_a \sum_{i=1}^a n_i$.
 % \end{lemma}
 
 % \textit{Proof of Lemma \ref{peakshrink}.} Blank for now. Kind of obvious.
 
-% \begin{theorem}\label{rewriteorderthm}
-%   Consider a word $W := w_0t^{n_1}w_1 \dots t^{n_{k-1}}w_{k-1}t^{n_k}w_k$,
-%   where $n_1 > 0$. Let $1 \le a \le k$ be such that
-%   for any $b$ in the same range, $\sum_{i=1}^a n_i \ge \sum_{i=1}^b n_i$, and
-%   such that for any $b$ such that $\sum_{i=1}^a n_i = \sum_{i=1}^b n_i$, then $a \le b$.
-%   Then $W$ cannot be put into the form $gt^n$ with $g \in F(S')$ by the HNN
-%   rewriting rules unless $\overline{w_a} \in \overline{A}$.
 
-%   There is a similar theorem when $n_1 < 0$.
-% \end{theorem}
 
 % \textit{Proof of Theorem \ref{rewriteorderthm}.} There are two ways that $W$ may be normalized
 % without $\overline{w_a} \in \overline{A}$. Either the problem is simplified from the left, and the $t$
@@ -818,17 +864,12 @@ for simple examples. It is possible to generalize this to more complicated examp
 % of $w_i$ any easier; there will no no cancellation of $t$s,
 % so this rewrite should be attempted after anything to the right of it.
 
-% The exponential behaviour in Example \ref{ltrbad} can be mitigated if the "easiest"
-% rewrites are attempted first. An approximate measure of how
-% easy it is to normalize a pair $t^{n_i}w_i$ is to count the number of letters
-% in $w_i \in F(S')$ that are not the corresponding subgroup, $A$ if $n_i > 0$,
-% $B$ if $n_i < 0$; the less letters not in $A$ (or $B$ if $n_i < 0$),
-% the easier the problem is.
+
 
 % \begin{defn}[thingy]
 % For a pair $t^{n_i}w_i$, where $n_i > 0$ we define $\text{thingy}(n_i, w_i)$ to be the number of
-% occurences of letters in $w_i$ but not in $A$, if $n_i < 0$ it is the number of occurences
-% of letters in $w_i$ but not in $B$. The number of occurences to be the sum of the absolute
+% occurrences of letters in $w_i$ but not in $A$, if $n_i < 0$ it is the number of occurrences
+% of letters in $w_i$ but not in $B$. The number of occurrences to be the sum of the absolute
 % value of the exponents of these letters.
 % \end{defn}
 
@@ -865,25 +906,48 @@ for simple examples. It is possible to generalize this to more complicated examp
 % will make words longer, and so the left to right normalization produces shorter proofs.
 % The left to right normalization was found to produce shorter proofs in practice.
 
+\subsection{Heuristics}
+
+A few heuristics are implemented when there is a simpler method than Magnus' method.
+They are implemented in the following order
+
+\begin{itemize}
+  \item Check whether the word $w$ is already written using letters in $T$. If $w \in T$,
+  then trivially $\overline{w} \in \overline{T}$
+
+  \item If there is a letter $x$ in the relator $r$ such that $x \notin T$, but
+  $x$ is in $w$ then by the Freiheitsatz, $\overline{w} \notin \overline{T}$,
+  so the algorithm can fail straight away.
+
+  \item If $w$ is not in the subgroup generated by $r$ and $T$ after abelianizing the free
+    group, the algorithm can fail straight away.
+
+  \item If the relation $r$ has exactly one occurrence of a letter, say $x$, then
+    the problem can be solved by rearranging the equation $r = 1$ to the form
+    $x = v$, where $v$ is a word not containing $x$, and making this substitution everywhere
+    in $w$.
+\end{itemize}
+
 \subsection{Injectivity}\label{powproof}
 
 The correctness of the algorithm relies on the fact that the map $\psi_2$ is an injective map.
 Since $\psi_2$ is injective, if $p \in P(F(S))$ is a witness of the congruence
 $\psi_2(a) \equiv \psi_2(b) \text{ mod } \psi_2(r)$, then there must exist a certificate
 $q$ of the congruence $a = b \text{ mod }r$. The question is how to compute this. The proof
-of this congruence relies on the fact that the canonical maps into an amalgamated product
-of groups are injective. However this proofs relies on the law of the excluded middle, so
-it cannot be translated into an algorithm to compute $q$. (Cite proof of amalgamated product).
+of this congruence given in \cite{PutmanOneRelator} relies on the fact that the canonical maps into an amalgamated product
+of groups are injective. However the standard proof
+seems to rely on the law of the excluded middle, so
+it cannot be translated into an algorithm to compute $q$.
 
 Suppose $p \in P(F(S))$ is a witness of the congruence
 $\psi_2(a) = \psi_2(b) \text{ mod } \psi_2(r)$. It is not necessarily the case that $k$
-is a multiple of $n$ in every occurence of $t^k$ in $p$. For example
+is a multiple of $n$ in every occurrence of $t^k$ in $p$. For example
 $p := ([t][tr^{-1}t^{-1}][t]^{-1}, 1) \in P(F(S))$ is a witness of the congruence
 $r = 1$. Both $\text{lhs}(p)$ and $\text{rhs}(p)$ are in the image of
 $\psi_2$ for $n = 2$, when $r$ is in the image of $\psi_2$,
 but $p$ is not in the image of $P(\psi_2)$. However where there are
-occurences of $t$, they are all cancelled after $\text{lhs}$ is applied, in fact
-you could remove every occurence of $t$ from $p$ and still have a certificate of the same
+occurrences of $t$, they are all cancelled after $\text{lhs}$ is applied, in fact
+one could remove every occurrence of $t$ from $p$ and still have a certificate of the same
 congruence.
 
 \begin{defn}
@@ -895,7 +959,7 @@ congruence.
 
 \begin{defn}
   $h$ is a map $F(S) \to F(S \cup \{t'\})$, where $t'$ is some letter not in $S$.
-  $h$ replaces every occurence of $t^k$ with $t'^at^b$ in such a way that $a + n b = k$,
+  $h$ replaces every occurrence of $t^k$ with $t'^at^b$ in such a way that $a + n b = k$,
   and every partial exponent sum of $t'$ in $h(w)$ is either not a multiple of $n$,
   or it is zero.
 \end{defn}
@@ -916,7 +980,7 @@ $\theta(w) = \psi_2(w)$.
 
 \begin{defn}(PowProof)\label{PowProof}
   \textit{PowProof} is a map $F(S) \to F(S)$. $\text{PowProof}(w)$ is defined to be
-  $h(w)$, but with every occurence of $t'$ replaced with $1$.
+  $h(w)$, but with every occurrence of $t'$ replaced with $1$.
 \end{defn}
 
 \begin{theorem}\label{powproof}
@@ -931,9 +995,9 @@ $\theta(w) = \psi_2(w)$.
   Suppose every partial product $\prod_{i=1}^b s_i^{k_i}$,
   with $b \le a$ has the property that if the exponent sum of $t'$ is a multiple
   of $n$, then it is zero. Suppose also that $\prod_{i = 1}^b s_i^{k_i}$ has the
-  property that for every occurence of $t'^k$ in the reduced product, $k$ is a multiple of
+  property that for every occurrence of $t'^k$ in the reduced product, $k$ is a multiple of
   $n$. Then the reduced word $\prod_{i = 1}^a s_i^{k_i}$
-  can be written without an occurence of $t'$.
+  can be written without an occurrence of $t'$.
 \end{sublemma}
 
 \textbf{Proof of Lemma \ref{powproof1}.} $\prod_{i=0}^a s_i^{k_i}$ can be written as a reduced
@@ -941,14 +1005,14 @@ word $\prod_{i = 1}^{c} u_i^{k'_i}$ such that $k'_i$ is never equal to zero and
 $u_i \ne u_{i+1}$ for any $i$. The set of partial products of this
 $\prod_{i = 1}^{c} u_i^{k'_i}$ is a subset of the set of partial products of $\prod_{i=1}^a s_i^{k_i}$,
 therefore the exponent sum of $t'$ in every partial product of $\prod_{i=1}^a s_i^{k_i}$, is
-either $0$ or not a multiple of $n$. However, by assumption every occurence $t'^k$ in
+either $0$ or not a multiple of $n$. However, by assumption every occurrence $t'^k$ in
 $\prod_{i=0}^a s_i^{k_i}$, $k$, is a multiple of $n$, so the exponent sum of $t'$ in every
 partial product is $0$. So $\prod_{i=1}^a s_i^{k_i}$ does not contain $t'$.
 
 \textbf{Proof of Theorem \ref{powproof}} \newline
 If $\text{Eval}(\psi_2(r))(p)$ is in the image of $\psi_2$, then
 $\text{Eval}(r)(F(h)(p))$ has the property
-that for every occurence of $t'^k$, $k$ is a multiple of $n$.
+that for every occurrence of $t'^k$, $k$ is a multiple of $n$.
 If $p' := F(h)(p)$,
 then $\text{Eval}(r)(p')$ can be written as a product of the form in
 Lemma \ref{powproof1}.
@@ -961,7 +1025,7 @@ form, send $\prod_i \left[\prod_{j = 1}^a s_{ij}^{k_j}\right]
 \end{equation}
 If all the nested products in Equation \ref{eq:bigprod} are appended into one long product,
 then the product has the form in Lemma \ref{powproof1}. Therefore when the word is reduced
-it will not contain $t'$ by Lemma \ref{powproof1}. This means that deleting all occurences of
+it will not contain $t'$ by Lemma \ref{powproof1}. This means that deleting all occurrences of
 $t'$ will in $p'$ will not change $\text{Eval}(r)(p')$, and therefore
 $\text{Eval}(r)(F(\text{PowProof})(p)) = \text{Eval}(r)(F(h)(p))$.
 Applying $\psi_2$ to both sides gives
@@ -969,6 +1033,48 @@ $\psi_2(\text{Eval}(r)(F(\text{PowProof})(p)) =
   \psi_2(\text{Eval}(r)(F(h)(p))) =
   \theta(\text{Eval}(r)(F(h)(p))) =
   \text{Eval}(\psi_2(r))(p)$.
+  \section{Efficiency of the Algorithm}
 
+  The worst case performance of this algorithm is worse than any finite tower of exponents
+  \cite{miasnikov2011word}. The more relevant question is what is the typical performance.
+
+  \begin{defn}[Area of a Relation]
+  For a finitely presented group $G := \langle S | R\rangle$, if $w \in F(S)$ is equal
+  to $1$ in the quotient $G$, then we say it is a \textit{relation}.
+  The \textit{area of a relation} is the smallest $N$ such that $w$ can be written
+  in the form $\prod_{i=1}^N g_i r_i^{\epsilon_i} g_i^{-1}$, where $\epsilon_i = \pm 1$
+  and $r_i \in R$ for all $i$.
+  \end{defn}
+
+  \begin{defn}[Dehn Function]
+  For a finitely presented group $G := \langle S | R\rangle$, the Dehn function
+  of the presentation $\text{Dehn}(n) \in \mathbb{N}$ is defined as the
+  largest area of a relation of length at most $n$.
+  \end{defn}
+
+  The Dehn function puts a lower bound on the complexity of the one-relator algorithm.
+  The area of a relation is by definition the length of the shortest certificate
+  that the algorithm might produce, so the complexity of the algorithm is bounded above by
+  the Dehn function of a relator.
+  The group $\langle a, b | b a b^{-1} a b a^{-1} b^{-1} = a^2\rangle$ is such that
+  $\text{Dehn}(n)$ is worse than any finite tower of exponents. This means that the
+  complexity of the one relator algorithm is also worse than any finite tower of
+  exponents.
+
+  Not all groups have such a fast growing Dehn function. For example, if the relator
+  is of the form $r^k$ with $|k| \ne 1$ then $\text{Dehn}(n) \le n$.
+  Similarly, even in groups with a rapidly increasing Dehn function,
+  there are words that do not have a large area as the worst case.
+
+  So, even though the worst case behaviour is very bad, there are still potentially many
+  problems that the algorithm could solve in a practical amount of time. The aim of this
+  implementation was to have good performance on relations with a small area.
+  A typical Lean tactic state will usually be used on problems where the author knows
+  the solution, but simply needs automation to write a formal proof of the solution.
+  These relations will usually have a very small area. The aim of this implementation
+  was that the algorithm should have good performance on relations with a small area,
+  but makes no attempt to solve problems where the area of the relation is very large.
+
+\bibliography{references}
 
 \end{document}
