@@ -10,7 +10,7 @@ meta structure cache :=
 (red : transparency)
 (ic : ref instance_cache) -- instance_cache for G
 (atoms : ref (buffer expr))
-(free_group_simp_lemmas : simp_lemmas)
+--(free_group_simp_lemmas : simp_lemmas)
 (eval_simp_lemmas : simp_lemmas)
 
 @[derive [monad, alternative]]
@@ -98,11 +98,11 @@ do u ← mk_meta_univ,
    u ← get_univ_assignment u,
    ic ← mk_instance_cache G,
    zc ← mk_instance_cache `(ℤ),
-   fsl ← mk_free_group_simp_lemmas,
+   --fsl ← mk_free_group_simp_lemmas,
    esl ← mk_eval_simp_lemmas,
    using_new_ref ic $ λ ric,
    using_new_ref mk_buffer $ λ atoms,
-   reader_t.run m ⟨G, u, red, ric, atoms, fsl, esl⟩
+   reader_t.run m ⟨G, u, red, ric, atoms, esl⟩
 
 namespace group_rel_m
 
@@ -174,9 +174,9 @@ inductive proof_eq_one
   → proof_eq_one old_word
 
 theorem eq_of_eval_eq_one {G : Type*} [group G] (atoms : list G)
-  (lhs rhs : G) (w : free_group) (h : eval atoms w * (rhs * lhs⁻¹) = 1)
+  (lhs rhs : G) (w : free_group) (h : eval atoms w = lhs * rhs⁻¹)
   (h₂ : eval atoms w = 1) : lhs = rhs :=
-sorry
+mul_inv_eq_one.1 (h ▸ h₂)
 
 theorem eq_one_of_proof_eq_one {G : Type*} [group G] (atoms : list G)
   (g : free_group) (h : proof_eq_one atoms g) : eval atoms g = 1 :=
@@ -247,24 +247,24 @@ lift $ atoms.to_list.foldr
   (mk_mapp `list.nil [some c.G])
 
 lemma eval_eq_one {G : Type*} [group G] (lhs rhs : G) (h : lhs = rhs) (w : free_group)
-  (atoms : list G) (hw : eval atoms w * (rhs * lhs⁻¹) = 1) : eval atoms w = 1 :=
+  (atoms : list G) (hw : eval atoms w = lhs * rhs⁻¹) : eval atoms w = 1 :=
 begin
-  rw [mul_eq_one_iff_eq_inv] at hw,
   rw [hw, h],
   simp
 end
 
---make a proof that `eval atoms g * (rhs * lhs⁻¹) = whatever`
+--make a proof that `eval atoms g = lhs * rhs⁻¹`
 meta def make_proof_eval_eq (lhs rhs : expr)
     (g : free_group) (atoms : expr) : group_rel_m expr :=
-do lhs_inv : expr ← mk_app `has_inv.inv [lhs],
-rhs_mul_lhs_inv : expr ← mk_app `has_mul.mul [rhs, lhs_inv],
+do rhs_inv : expr ← mk_app `has_inv.inv [rhs],
+lhs_mul_rhs_inv : expr ← mk_app `has_mul.mul [lhs, rhs_inv],
 eval_g : expr ← mk_app ``eval [atoms, to_expr g],
-eval_g_mul : expr ← mk_app `has_mul.mul [eval_g, rhs_mul_lhs_inv],
 c ← get_cache,
 let esl := c.eval_simp_lemmas,
-proof_aux : expr × expr ← lift $ simplify esl [] eval_g_mul,
-return proof_aux.2
+proof1 : expr × expr ← lift $ simplify esl [] eval_g,
+proof2 : expr × expr ← lift $ simplify esl [] lhs_mul_rhs_inv,
+proof2 ← lift $ mk_eq_symm proof2.2,
+lift $ mk_eq_trans proof1.2 proof2
 
 -- make a proof that `eval atoms g = 1` given
 meta def make_proof_eval_eq_one (lhs rhs : expr)
@@ -274,17 +274,13 @@ do proof_aux : expr ← make_proof_eval_eq lhs rhs g atoms,
 mk_app ``eval_eq_one [lhs, rhs, e, to_expr g, atoms, proof_aux]
 
 lemma eval_conj_eq_one {G : Type*} [group G] (atoms : list G)
-  (rel conj new_rel : free_group) (h : new_rel = conj * rel * conj⁻¹)
+  (rel conj new_rel : free_group) (h : new_rel = conj⁻¹ * rel * conj)
   (rel_eq_one : eval atoms rel = 1) :
   eval atoms new_rel = 1 :=
 begin
   subst new_rel,
   simp [rel_eq_one, eval_mul, eval_inv]
 end
-
-def x : free_group := by tactic.exact (to_expr (cyclically_reduce_conj (of 0 * of 1 * (of 0)⁻¹)))
-
-#print x
 
 meta def cyclically_reduce_rel (rel : free_group) (rel_eq_one : expr) :
   group_rel_m (free_group × expr) :=
@@ -294,7 +290,7 @@ if a = 1
     rel_eq_one ← lift $ note name none rel_eq_one,
     return (rel, rel_eq_one)
   else do atoms ← list_atoms,
-    let new_rel := a * rel * a⁻¹,
+    let new_rel := a⁻¹ * rel * a,
     pr ← mk_app ``eval_conj_eq_one
       [atoms, to_expr rel, to_expr a, to_expr new_rel,
         `(@eq.refl free_group %%(to_expr new_rel)), rel_eq_one],
@@ -302,25 +298,42 @@ if a = 1
     pr ← lift $ note name none pr,
     return (new_rel, pr)
 
+lemma eval_inv_eq_one {G : Type*} [group G] (atoms : list G) (rel rel_inv : free_group)
+  (h : rel⁻¹ = rel_inv) (hrel : eval atoms rel = 1) : eval atoms rel_inv = 1 :=
+begin
+  subst rel_inv,
+  rw [eval_inv, hrel, one_inv]
+end
+
+meta def make_proof_inv_eq_one (rel : free_group) (rel_eq_one : expr) :
+  group_rel_m (free_group × expr) :=
+do atoms ← list_atoms,
+let rel_inv := rel⁻¹,
+pr ← mk_app ``eval_inv_eq_one
+  [atoms, to_expr rel, to_expr rel_inv,
+    `(@eq.refl free_group rel_inv),
+    rel_eq_one],
+name ← lift $ mk_fresh_name,
+pr ← lift $ note name none pr,
+return (rel_inv, pr)
+
 meta def make_proofs
   (pr lhs rhs : expr)
   (lhsg rhsg : free_group) : group_rel_m
     (free_group × --rel
-      free_group × -- rel⁻¹
-      expr  -- proof that lhs * rhs⁻¹ = 1
-    × expr -- proof that rhs * lhs⁻¹ = 1
+     free_group × --rel⁻¹
+     expr × --proof that rhs * lhs⁻¹ = 1
+     expr  -- proof that lhs * rhs⁻¹ = 1
     ) :=
 do
 atoms ← list_atoms,
 c ← get_cache,
 let esl := c.eval_simp_lemmas,
 let rel := lhsg * rhsg⁻¹,
-let rel_inv := rhsg * lhsg⁻¹,
 pr_symm ← lift $ mk_eq_symm pr,
 proof1 : expr ← make_proof_eval_eq_one lhs rhs pr rel atoms,
-proof2 : expr ← make_proof_eval_eq_one rhs lhs pr_symm rel_inv atoms,
 (rel, proof1) ← cyclically_reduce_rel rel proof1,
-(rel_inv, proof2) ← cyclically_reduce_rel rel_inv proof2,
+(rel_inv, proof2) ← make_proof_inv_eq_one rel proof1,
 return (rel, rel_inv, proof1, proof2)
 
 meta def mk_list_free_group : list expr → group_rel_m
@@ -395,8 +408,7 @@ meta def perform_substs_core :
         show group_rel_m (free_group × free_group × expr × expr),
         from do (new_word, new_word_eq_one) ←
             subst_into_rel rel' word  i r₁ r₂ rel'_eq_one word_eq_one,
-          (new_word_inv, new_word_inv_eq_one) ←
-            subst_into_rel rel' word_inv  i r₁ r₂ rel'_eq_one word_inv_eq_one,
+          (new_word_inv, new_word_inv_eq_one) ← make_proof_inv_eq_one new_word new_word_eq_one,
           return (new_word, new_word_inv, new_word_eq_one, new_word_inv_eq_one)),
     new_tgt ← subst_into_target rel' tgt i r₁ r₂ rel'_eq_one,
     perform_substs_core new_p [] new_tgt
@@ -430,7 +442,6 @@ list_rels : list (expr × expr × expr × free_group × free_group) ← mk_list_
     (list.to_buffer (new_p.map (λx, x.1)))
     (list.to_buffer (new_p.map (λx, x.2.1)))
     path.reverse,
-  t ← make_proof_eval_eq tlhs trhs (lhsg * rhsg⁻¹) atoms,
   pr ← mk_app ``eq_one_of_proof_eq_one [atoms, to_expr tgt, e],
   lift $ tactic.exact pr
 

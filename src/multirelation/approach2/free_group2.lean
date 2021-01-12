@@ -163,7 +163,9 @@ lemma eq_one_of_subst_eq_one
   eval l word = 1 :=
 begin
   substs rhs r new_word,
-  sorry
+  rw [eval_subst] at hw, rw hw,
+  { simp only [eval_append, eval_mul, eval_inv] at *,
+    rwa [eq_inv_mul_iff_mul_eq, eq_inv_iff_mul_eq_one] }
 end
 
 meta def is_subst_aux : free_group → free_group →

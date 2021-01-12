@@ -55,15 +55,10 @@ begin
   { rw [pow_succ, pow_succ', pow_mul],
     have hb : b ^ (2 ^ n) * b = b * b ^ (2 ^ n), from pow_mul_comm' _ _,
     have ha : a ^ n * a = a * a ^ n, from pow_mul_comm' _ _,
-    -- rw [eq_comm, ← eq_mul_inv_iff_mul_eq] at ih,
-    -- rw [ih] at ⊢ hb,
     group_rel [h, ha, hb, ih] },
 end
 
 #print test4
-
-
-
 
 lemma test (h : a * b = b * a) : a^100 * b = b * a^100 :=
 by group_rel [h]
