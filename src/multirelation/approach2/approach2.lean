@@ -141,8 +141,6 @@ do c ← get_rewrites,
         | none          := add_path rw
         end)
     ()
--- Forgot to add completed_starting rewrites that didn't match with any current rewrite.
-
 
 -- Not the proper thing but it works
 meta def match_starting_rewrites' : leaves_m unit :=
@@ -350,6 +348,8 @@ of 1 * (of 0)^2 * (of 1)⁻¹ * (of 0)⁻¹] in
 
 (trace_path (solve rels (of 0)).2)
 
+#eval let rels := [of 0 * of 1 * (of 0)⁻¹] in
+(trace_path (solve rels (of 1)).2)
 
 #eval let rels :=
 [of 0 * of 1 * of 2 * of 3,
