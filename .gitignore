@@ -12,3 +12,8 @@ all.lean
 *.fdb_latexmk
 *.synctex.gz
 *.dvi
+*.nav
+*.snm
+*.toc
+*.vrb
+*.blg
