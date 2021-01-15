@@ -1,15 +1,13 @@
 import .tactic
-import tactic
 
 set_option profiler true
-
 variables {G : Type*} [group G]
   (a b c d e f g h i j k l m n o p q r s t u v w x y z : G)
 
 lemma test1
   (h₁ : a * b^2 = b * a)
   (h₂ : b * a^2 = a * b) :
-  a = 1 :=
+  b = 1 :=
 begin
   group_rel [h₁, h₂],
 
@@ -43,28 +41,29 @@ lemma test3c (h : a * b = b ^ 2 * a) :
   b * (a ^ 5 * b * a ^ (-5 : ℤ)) =
       (a ^ 5 * b * a ^ (-5 : ℤ)) * b :=
 begin
-  --group_rel [h],
+  group_rel [h],
 
 end
 
 lemma test4 (h : a * b = b ^ 2 * a) (n : ℕ) :
-  a ^ n * b = b ^ (2 ^ n) * a ^ n :=
+  a ^ n * b * a ^ (-n : ℤ) = b ^ (2 ^ n) :=
 begin
   induction n with n ih,
   { simp },
-  { rw [pow_succ, pow_succ', pow_mul],
-    have hb : b ^ (2 ^ n) * b = b * b ^ (2 ^ n), from pow_mul_comm' _ _,
-    have ha : a ^ n * a = a * a ^ n, from pow_mul_comm' _ _,
-    group_rel [h, ha, hb, ih] },
+  { rw [pow_succ' 2, pow_mul],
+    group_rel [h, ih] },
 end
 
-#print test4
+lemma test6 (h : ∀ g : G, g^2 = 1) : a * b = b * a :=
+by group_rel [h a, h b, h (a * b)]
 
-lemma test (h : a * b = b * a) : a^100 * b = b * a^100 :=
+lemma test (h : a * b = b * a) : a^10 * b^10*a^10 = b^9 * a^20 * b :=
 by group_rel [h]
 
 lemma test5 (h : a * b = b^2 * a) : a^2 * b = b^4 * a^2 :=
 by group_rel [h]
 
-lemma test6 (h : a * b * a * b^2 = 1) : a * b = b * a :=
-by group_rel [h]
+lemma test8 (m n : nat) : a ^ n * a ^ m = a ^ m * a ^ n :=
+by group_rel []
+
+#print test8

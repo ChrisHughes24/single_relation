@@ -32,7 +32,7 @@ structure rewrite : Type :=
 (rel_is_inv : bool)
 (old_word : free_group)
 (new_word : free_group)
-(new_word_length : ℕ)
+(new_word_cost : ℕ)
 (word_start_index : ℕ)
 (rel_letter_index : ℕ)
 (path_length : ℕ)
@@ -47,13 +47,16 @@ except_t path_step
   (state_t (
       rb_lmap (ℕ × ℕ) path_step × --leaves, indexed by word length and then path length
       rb_map (free_group) (path_step) --seen
-      ) (reader (buffer relation)))
+      ) (reader (buffer relation × ℕ)))
 
 meta instance {α : Type} : has_coe (option α) (tree_m α) :=
 ⟨λ o, o.elim ⟨return (except.error ⟨1, ff, 1, 1, 1, 1, 1, 0⟩)⟩ return⟩
 
 meta def get_rels : tree_m (buffer relation) :=
-except_t.lift $ state_t.lift $ reader_t.read
+do x ← except_t.lift $ state_t.lift $ reader_t.read, return x.1
+
+meta def get_no_atoms : tree_m ℕ :=
+do x ← except_t.lift $ state_t.lift $ reader_t.read, return x.2
 
 meta def leaves : tree_m (rb_lmap (ℕ × ℕ) path_step) :=
 do l ← except_t.lift state_t.get, return l.1
@@ -71,18 +74,18 @@ match l with
 | [p]               :=
   match leaves.2.contains p.new_word with
   | ff := do except_t.lift (state_t.modify
-    (λ rb, (rb.1.erase (p.new_word_length, p.path_length), rb.2.insert p.new_word p))), return p
+    (λ rb, (rb.1.erase (p.new_word_cost, p.path_length), rb.2.insert p.new_word p))), return p
   | tt := do except_t.lift (state_t.modify
-        (λ rb, (rb.1.erase (p.new_word_length, p.path_length), rb.2))),
+        (λ rb, (rb.1.erase (p.new_word_cost, p.path_length), rb.2))),
      get_min_leaf_and_erase
   end
 | (p :: l'@(_ :: _)) :=
   match leaves.2.contains p.new_word with
   | ff := do except_t.lift (state_t.modify
-      (λ rb, (rb_map.insert rb.1 (p.new_word_length, p.path_length) l', rb.2.insert p.new_word p))),
+      (λ rb, (rb_map.insert rb.1 (p.new_word_cost, p.path_length) l', rb.2.insert p.new_word p))),
     return p
   | tt := do except_t.lift (state_t.modify
-    (λ rb, (rb_map.insert rb.1 (p.new_word_length, p.path_length) l', rb.2))),
+    (λ rb, (rb_map.insert rb.1 (p.new_word_cost, p.path_length) l', rb.2))),
     get_min_leaf_and_erase
   end
 end
@@ -93,7 +96,6 @@ meta def stop (p : path_step) : tree_m path_step :=
 meta structure leaf_data :=
 (rel : relation)
 (word : free_group)
-(word_length : ℕ)
 (path_length : ℕ)
 
 @[derive monad] meta def leaves_m (α : Type) : Type :=
@@ -113,20 +115,21 @@ meta def get_rewrites : leaves_m rewrites := reader_t.lift state_t.get
 meta def get_leaf_data : leaves_m leaf_data := reader_t.read
 
 meta def add_path (rw : rewrite) : leaves_m unit :=
-do ⟨rel, old_word, word_length, path_length⟩ ← get_leaf_data,
+do ⟨rel, old_word, path_length⟩ ← get_leaf_data,
   let new_word := cyclically_reduce (old_word.take rw.word_start_index
     * ((rel.rel.rotate rw.rel_letter_index))⁻¹
     * old_word.drop (rw.word_start_index)), --check if this is correct
-  let new_length := new_word.length,
+  no_atoms : ℕ ← tree_m.lift get_no_atoms,
+  let new_cost := cost no_atoms new_word,
   let new_path : path_step :=
     ⟨rel.rel_index, rel.is_inv, old_word, new_word,
-      new_length, rw.word_start_index, rw.rel_letter_index, path_length⟩,
+      new_cost, rw.word_start_index, rw.rel_letter_index, path_length⟩,
   reader_t.lift $ state_t.lift $ except_t.lift $ state_t.modify
-  (λ rb, (rb_lmap.insert rb.1 (new_length, path_length) new_path, rb.2))
+  (λ rb, (rb_lmap.insert rb.1 (new_cost, path_length) new_path, rb.2))
 
 meta def match_starting_rewrites : leaves_m unit :=
 do c ← get_rewrites,
-⟨rel, word, word_length, path_length⟩ ← get_leaf_data,
+⟨rel, word, path_length⟩ ← get_leaf_data,
   c.starting_rewrites.fold
     (return ())
     (λ rel_letter_index cancel_length m,
@@ -196,30 +199,20 @@ meta def grow_leaves_aux :
   reader_t.lift (state_t.modify (λ rw, ⟨sr, csr, cr⟩)), --should this be ⟨sr, csr, cr⟩?
   l ← get_indices x,
   l.mfoldl
-    (λ _ index, -- Commenting out below three lines fixes it
+    (λ _ index,
       if ld.rel.letters.read' (sub_one_mod index ld.rel.length) = y
-        then
-          -- do rewrites ← get_rewrites,
-          -- let cr := rewrites.3,
-          -- let crb := cr.any
-          --   (λ rw, sub_one_mod (rw.rel_letter_index + rw.cancel_length) ld.rel.length = index ∨
-          --     rw.word_start_index + rw.cancel_length = word₂_length),
-          -- let srb := rewrites.starting_rewrites.to_list.any
-          --   (λ n, n.1 + n.2 - 1 = index),
-          -- --trace (repr (crb || srb))
-          return ()
+        then return ()
         else
           reader_t.lift $ state_t.modify
             (λ rw, ⟨rw.1, rw.2, ⟨word₂_length, index, 1⟩::rw.3⟩))
-        --Check if the index - 1 is y, if not add a new path
     (),
   grow_leaves_aux l₁ (x::word₂) word₂_length.succ
 
 meta def grow_leaves (rel : relation) (word : free_group)
-  (word_length : ℕ) (path_length : ℕ) : tree_m unit :=
+  (path_length : ℕ) : tree_m unit :=
 state_t.run
   (reader_t.run
-    (grow_leaves_aux word 1 0) ⟨rel, word, word_length, path_length.succ⟩)
+    (grow_leaves_aux word 1 0) ⟨rel, word, path_length.succ⟩)
   ⟨mk_rb_map, mk_rb_map, []⟩ >>
 return ()
 
@@ -230,7 +223,7 @@ do p ← get_min_leaf_and_erase,
   else do rels ← get_rels,
     rels.iterate
       (return ())
-      (λ _ rel m, grow_leaves rel p.new_word p.new_word_length p.path_length >> m) >>
+      (λ _ rel m, grow_leaves rel p.new_word p.path_length >> m) >>
     solve_aux
 
 meta def make_relation (r : free_group) (rel_index : ℕ) (is_inv : bool)
@@ -257,27 +250,27 @@ rels.foldl_with_index
 def max_letter (w : free_group) : ℕ :=
 (w.argmax (λ b : ℕ × bool, b.1)).iget.fst
 
-meta def solve (rels : list (free_group)) (word : free_group) :
-  path_step × rb_map (free_group) path_step :=
+meta def solve (rels : list (free_group)) (word : free_group) (no_atoms : ℕ) :
+  option (path_step × rb_map (free_group) path_step) :=
 let max_letter : ℕ := max (max_letter (rels.argmax max_letter).iget) (max_letter word) in
 let i1 := except_t.run solve_aux in
 let i2 := state_t.run i1
   (rb_lmap.insert mk_rb_map (word.length, 0)
     ⟨0, ff, 1, word, word.length, 0, 0, 0⟩,
     mk_rb_map) in
-let i3 := reader_t.run i2 (make_rels rels max_letter) in
-(except.cases_on i3.1 id id, i3.2.2)
+let i3 := reader_t.run i2 (make_rels rels max_letter, no_atoms) in
+except.cases_on i3.1 (λ x, return (x, i3.2.2)) (λ x, none)
 
-meta def solve' (rels : list (free_group)) (word : free_group) :
-  path_step × rb_lmap (ℕ × ℕ) (path_step) :=
+meta def solve' (rels : list (free_group)) (word : free_group) (no_atoms) :
+  option (path_step × rb_lmap (ℕ × ℕ) (path_step)) :=
 let max_letter : ℕ := max (max_letter (rels.argmax max_letter).iget) (max_letter word) in
 let i1 := except_t.run solve_aux in
 let i2 := state_t.run i1
   (rb_lmap.insert mk_rb_map (word.length, 0)
     ⟨0, ff, 1, word, word.length, 0, 0, 0⟩,
     mk_rb_map) in
-let i3 := reader_t.run i2 (make_rels rels max_letter) in
-(except.cases_on i3.1 (λ _, default _) id, i3.2.1)
+let i3 := reader_t.run i2 (make_rels rels max_letter, no_atoms) in
+except.cases_on i3.1 (λ _, none) (λ x, return (x, i3.2.1))
 
 meta def trace_path_core : Π (word : free_group)
   (seen : rb_map free_group path_step), list path_step
@@ -331,56 +324,5 @@ else p₁
 
 instance : has_repr (path_step) :=
 ⟨λ p, repr p.new_word⟩
-
--- #eval (solve [of 0 * of 1 * (of 0)⁻¹ * (of 1)⁻¹]
--- (of 1^100 * of 0 * (of 0^100 * of 1)⁻¹)).2.to_list
-set_option profiler true
-
--- #eval let n : ℤ := (-5 : int) in
--- ((solve [of 0 * of 1 * (of 0)⁻¹ * (of 1)^ (2 : int)]
--- (of 0 ^ n * of 1 * of 0 ^ (- n) * (of 1) *
---  of 0 ^ n * (of 1)⁻¹ * of 0 ^ (-n) * (of 1)⁻¹)))
-
-
-#eval let rels :=
-[of 0 * (of 1)^2 * (of 0)⁻¹ * (of 1)⁻¹,
-of 1 * (of 0)^2 * (of 1)⁻¹ * (of 0)⁻¹] in
-
-(trace_path (solve rels (of 0)).2)
-
-#eval let rels := [of 0 * of 1 * (of 0)⁻¹] in
-(trace_path (solve rels (of 1)).2)
-
-#eval let rels :=
-[of 0 * of 1 * of 2 * of 3,
-of 0 * of 1 * of 2 * of 3,
-of 0 * of 1 * of 2 * of 3,
-of 0 * of 1 * of 2 * of 3] in
-check_path rels (trace_path
-  (solve rels (of 4 * of 0 * of 1 * of 2 * of 3 * (of 4)⁻¹)).2)
-
--- Something is wrong, it gets longer on this path, but
--- Kyle's solver it doesn't get longer.
-#eval let rels :=
- [of 0 * of 1 * (of 0)⁻¹ * (of 1) ^ (-2 : int),
-  of 2 * of 1 * (of 2)⁻¹ * (of 3)⁻¹,
-  of 2 * of 0 * (of 2)⁻¹ * (of 0)⁻¹,
-  of 3 * of 1 * (of 3)⁻¹ * (of 1)⁻¹] in
-(trace_path
-  (solve rels (of 0 * of 2 * of 1 * (of 2)⁻¹ * (of 0)⁻¹ * (of 3)^ (-2 : int))).2).length
-
-#eval let rels :=
- [of 0 * of 1 * (of 0)⁻¹ * (of 1)^ (-2 : int),
-  of 2 * of 1 * (of 2)⁻¹ * (of 3)⁻¹,
-  of 2 * of 0 * (of 2)⁻¹ * (of 0)⁻¹,
-  of 3 * of 1 * (of 3)⁻¹ * (of 1)⁻¹] in
-
-((solve' [of 0 * of 1 * (of 0)⁻¹ * (of 1)^ (-2 : int),
-  of 2 * of 1 * (of 2)⁻¹ * (of 3)⁻¹,
-  of 2 * of 0 * (of 2)⁻¹ * (of 0)⁻¹,
-  of 3 * of 1 * (of 3)⁻¹ * (of 1)⁻¹]
-  (of 0 * of 2 * of 1 * (of 2)⁻¹ * (of 0)⁻¹ * (of 3)^ (-2 : int))))
-  --.2.to_list.map
-  --prod.snd).join.map (λ p : path_step, (p.path_length, p.new_word_length))
 
 end group_rel

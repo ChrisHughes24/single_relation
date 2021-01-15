@@ -1,8 +1,8 @@
 import algebra.group
-import data.list.rotate
+import data.list.basic
 
 @[reducible] def free_group := list (ℕ × bool)
-
+#print tactic.simplify
 namespace group_rel
 namespace free_group
 open native
@@ -52,6 +52,9 @@ begin
 end
 
 def length (w : free_group) : ℕ := list.length w
+
+def cost (no_atoms : ℕ) (w : free_group) : ℕ :=
+w.foldl (λ cost i, cost * no_atoms + i.1.succ) 0
 
 def subst (x : ℕ) (r : free_group) : Π (w : free_group), free_group
 | [] := []
