@@ -2,25 +2,31 @@ import algebra.group
 import data.list.basic
 
 @[reducible] def free_group := list (ℕ × bool)
-#print tactic.simplify
+
 namespace group_rel
 namespace free_group
 open native
 
-meta def to_expr (w : free_group) : expr :=
-reflect (show list (ℕ × bool), from w)
+def ap : free_group → free_group → free_group := (++)
+def cons (i : ℕ) (b : bool) (a : free_group) : free_group :=
+⟨i, b⟩ :: a
 
 instance : has_one (free_group) := ⟨[]⟩
 
 lemma one_def : (1 : free_group) = [] := rfl
+
+meta def to_expr : free_group → expr
+| []          := `((1 : free_group))
+| (⟨i, b⟩::l) := `(cons %%(reflect i) %%(reflect b) %%(to_expr l))
 
 -- inv_core a b is a⁻¹ * b
 def inv_core : free_group → free_group → free_group
 | []            l  := l
 | (⟨i, n⟩::l₁)  l₂ := inv_core l₁ (⟨i, bnot n⟩::l₂)
 
-instance : has_inv free_group :=
-⟨λ l, inv_core l []⟩
+instance : has_inv free_group := ⟨λ a, inv_core a []⟩
+
+def inv (a : free_group) : free_group := a⁻¹
 
 lemma inv_def (w : free_group) : w⁻¹ = inv_core w [] := rfl
 
@@ -87,6 +93,14 @@ lemma eval_append (l : list G) : Π (w₁ w₂ : free_group),
 | (⟨i, tt⟩::w) w₂ := by simp [*, eval, mul_assoc]
 | (⟨i, ff⟩::w) w₂ := by simp [*, eval, mul_assoc]
 
+lemma eval_cons (l : list G) (i : ℕ) (o : bool) (w : free_group) :
+  eval l (cons i o w) = nth l i ^ cond o (-1 : int) (1 : int) * eval l w :=
+by cases o; simp [cons, eval]
+
+lemma eval_ap (l : list G) (w₁ w₂ : free_group) :
+  eval l (ap w₁ w₂) = eval l w₁ * eval l w₂ :=
+eval_append l w₁ w₂
+
 lemma eval_mul_aux (l : list G) : ∀ w₁ w₂ : free_group,
   eval l (mul_aux w₁ w₂) = eval l (w₁.reverse_core w₂)
 | []      l₂      := by simp [mul_aux, eval, list.reverse_core_eq]
@@ -124,7 +138,7 @@ lemma eval_inv (l : list G) (w : free_group) : eval l w⁻¹ = (eval l w)⁻¹ :
 by rw [inv_def, eval_inv_core, eval, mul_one]
 
 lemma eval_subst (l : list G) (x : ℕ) (r w : free_group)
-  (h : eval l [⟨x, ff⟩] = eval l r):
+  (h : eval l [⟨x, ff⟩] = eval l r) :
   eval l (subst x r w) = eval l w :=
 begin
   induction w with i w ih,
@@ -232,6 +246,86 @@ instance : has_pow free_group ℤ := ⟨λ a n, int.cases_on n
 
 -- instance : decidable_rel ((<) : free_group → free_group → Prop) :=
 -- λ _ _, show decidable ((_ : bool) : Prop), by apply_instance
+
+section eqv
+
+inductive eqv : free_group → free_group → Prop
+| refl : ∀ a, eqv a a
+| symm : ∀ {a b}, eqv a b → eqv b a
+| trans : ∀ {a b c}, eqv a b → eqv b c → eqv a c
+| cons : ∀ {a b i o}, eqv a b → eqv (cons i o a) (cons i o b)
+| ap : ∀ {a b c d}, eqv a b → eqv c d → eqv (ap a c) (ap b d)
+| inv_core :  ∀ {a b c d}, eqv a b → eqv c d → eqv (inv_core a c) (inv_core b d)
+| mul_inv_cancel : ∀ i a, eqv (cons i ff (cons i tt a)) a
+| inv_mul_cancel : ∀ i a, eqv (cons i tt (cons i ff a)) a
+
+attribute [refl] eqv.refl
+attribute [symm] eqv.symm
+attribute [trans] eqv.trans
+
+attribute [congr] eqv.cons eqv.ap
+
+variables {G : Type*} [group G]
+
+lemma inv_core_eq (a b : free_group) : inv_core a b = a⁻¹ ++ b :=
+begin
+  induction a with i a ih generalizing b,
+  { simp [inv_def, inv_core] },
+  { rw [inv_def] at *,
+    rcases i with ⟨_,_|_⟩,
+    { rw [inv_core, ih, inv_core, ih [_]],
+      simp },
+    { rw [inv_core, ih, inv_core, ih [_]],
+      simp } }
+end
+
+lemma inv_core_cons_ff_eqv (i : ℕ) (a b : free_group) :
+  eqv (inv_core (cons i ff a) b) (inv_core a (cons i tt b)) :=
+by refl
+
+lemma inv_core_cons_tt_eqv (i : ℕ) (a b : free_group) :
+  eqv (inv_core (cons i tt a) b) (inv_core a (cons i ff b)) :=
+by refl
+
+lemma inv_core_one_eqv (b : free_group) :
+  eqv (inv_core 1 b) b := by refl
+
+lemma ap_one_eqv (a : free_group) : eqv (ap a 1) a := by simp [ap, one_def]
+
+lemma one_ap_eqv (a : free_group) : eqv (ap 1 a) a := by simp [ap, one_def]
+
+lemma one_inv_eqv : eqv (inv 1) 1 := eqv.refl _
+
+lemma ap_cons_eqv {i : ℕ} {o : bool} {a b : free_group} :
+  eqv (ap (cons i o a) b) (cons i o (ap a b)) :=
+by simp [cons, ap]
+
+lemma eval_eq_of_eqv (atoms : list G) {a b : free_group} (hab : eqv a b) :
+  eval atoms a = eval atoms b :=
+by induction hab; simp [eval, eval_append, *, ap, eval_cons, eval_inv, inv_core_eq] at *
+
+meta def mk_free_group_simp_lemmas : tactic simp_lemmas :=
+do sl : simp_lemmas ←
+  ([``eqv.mul_inv_cancel, ``eqv.inv_mul_cancel,
+    ``ap_one_eqv, ``one_ap_eqv, ``ap_cons_eqv,
+    ``inv_core_cons_ff_eqv, ``inv_core_cons_tt_eqv,
+    ``inv_core_one_eqv] : list name).mfoldl
+  (λ (sl : simp_lemmas) n, sl.add_simp n)
+  simp_lemmas.mk,
+[``eqv.cons, ``eqv.inv_core, ``eqv.ap].mfoldl
+  (λ (sl : simp_lemmas) n, sl.add_congr n)
+  sl
+
+run_cmd mk_free_group_simp_lemmas
+
+open tactic expr
+
+meta def free_group_simp (lhs : expr) (sl : simp_lemmas) : tactic expr :=
+do
+(lhs', prl) ← (simplify sl [] lhs (default _) ``eqv <|> return (lhs, `(eqv.refl %%lhs))),
+return prl
+
+end eqv
 
 end free_group
 end group_rel
