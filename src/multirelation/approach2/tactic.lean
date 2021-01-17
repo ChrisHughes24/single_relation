@@ -1,4 +1,6 @@
 import .approach2
+import tactic.ring_exp
+import tactic
 
 namespace group_rel
 open expr tactic free_group native
@@ -8,51 +10,17 @@ meta structure cache :=
 (univ : level)
 (red : transparency)
 (ic : ref instance_cache) -- instance_cache for G
-(atoms : ref (buffer expr))
+(atoms : ref (buffer (expr × option (expr × expr))))
+(has_pow : expr)
 (free_group_simp_lemmas : simp_lemmas)
+(numeral_simp_lemmas₁ : simp_lemmas)
+(numeral_simp_lemmas₂ : simp_lemmas)
 
 @[derive [monad, alternative]]
 meta def group_rel_m (α : Type) : Type :=
 reader_t cache tactic α
 
 meta def get_cache : group_rel_m cache := reader_t.read
-
-section
-
-open tactic.simp_arg_type
-
-/-
-[inv_core, inv_def, bool.bnot_true, bool.bnot_false, eq_self_iff_true,
-  true_and, and_true, one_def, mul_def, list.reverse_core, mul_aux, ne.def,
-  not_false_iff, if_true, if_false, false_and, and_false,
-  nat.succ.inj_eq, nat.zero_eq_succ_eq]
--/
-
-meta def gpow_norm_simp_set : tactic simp_lemmas :=
-mk_simp_set tt []
-  [symm_expr ``(gpow_coe_nat),
-   expr ``(gpow_add),
-   expr ``(gpow_bit0),
-   expr ``(gpow_neg),
-   expr ``(bit0),
-   expr ``(bit1),
-   expr ``(gpow_one),
-   expr ``(gpow_zero),
-   expr ``(mul_add),
-   expr ``(add_mul),
-   expr ``(neg_neg),
-   symm_expr ``(neg_mul_eq_neg_mul),
-   symm_expr ``(neg_mul_eq_mul_neg),
-   expr ``(int.coe_nat_add),
-   expr ``(int.coe_nat_zero),
-   expr ``(int.coe_nat_one),
-   expr ``(int.coe_nat_mul),
-   expr ``(nat.succ_eq_add_one)]
->>= λ x, return x.fst
-
-end
-
-namespace group_rel_m
 
 meta def lift {α : Type} : tactic α → group_rel_m α := reader_t.lift
 
@@ -77,38 +45,60 @@ ic_lift' cache.ic
 meta def mk_app (n : name) (l : list expr) : group_rel_m expr :=
 ic_lift $ λ ic, ic.mk_app n l
 
+section ring_exp
+open tactic.ring_exp
 
-meta def mk_eval_simp_lemmas (ic : instance_cache) :
-  tactic (instance_cache × simp_lemmas) :=
-[``eval.equations._eqn_1,
-   ``eval.equations._eqn_2,
-   ``eval.equations._eqn_3,
-   ``inv_inv,
-   ``one_mul,
-   ``mul_one,
-   ``mul_assoc,
-   ``mul_inv_self,
-   ``inv_mul_self,
-   ``mul_inv_rev,
-   ``one_inv,
-   ``mul_inv_cancel_left,
-   ``inv_mul_cancel_left,
-   ``pow_one,
-   ``gpow_one,
-   ``gpow_neg,
-   ``pow_zero,
-   ``gpow_zero,
-   ``gpow_add,
-   ``pow_add,
-   ``gpow_bit0,
-   ``gpow_bit1,
-   ``pow_bit0,
-   ``pow_bit1].mfoldl
-(λ (x : instance_cache × simp_lemmas) n,
-  do (ic, e) ← x.1.mk_app n [],
-    sl ← x.2.add e ff,
-    return (ic, sl))
-(ic, simp_lemmas.mk)
+section simp_arg_type
+open tactic.simp_arg_type
+
+meta def mk_int_to_nat_simp_lemmas : tactic simp_lemmas :=
+do sl ← mk_simp_set tt []
+  [expr ``(int.coe_nat_one),
+   expr ``(int.coe_nat_zero),
+   expr ``(int.coe_nat_add),
+   expr ``(int.coe_nat_pow),
+   expr ``(int.coe_nat_mul),
+   expr ``(int.coe_nat_bit0),
+   expr ``(int.coe_nat_bit1),
+   expr ``(gpow_zero),
+   expr ``(gpow_one),
+   symm_expr ``(gpow_coe_nat)],
+return sl.1
+
+/-- unfold all natural number multiplications -/
+meta def mk_numeral_simp_lemmas₁ : tactic simp_lemmas :=
+do sl ← mk_simp_set tt []
+  [expr ``(@mul_comm ℤ _ (bit0 _)),
+   expr ``(@mul_comm ℤ _ (bit1 _)),
+   expr ``(@mul_right_comm ℤ _ _ (bit0 _)),
+   expr ``(@mul_right_comm ℤ _ _ (bit1 _))],
+return sl.1
+
+meta def mk_numeral_simp_lemmas₂ : tactic simp_lemmas :=
+do sl ← mk_simp_set tt []
+  [expr ``(@bit0.equations._eqn_1),
+   expr ``(@bit1.equations._eqn_1),
+   expr ``(@mul_add),
+   expr ``(@mul_one)],
+return sl.1
+
+end simp_arg_type
+
+meta def normalize_exponent_ring_exp (e : expr) : group_rel_m (expr × expr) :=
+do (e₁, pr₁) ←
+  ((do info_b ← mk_const ``int >>= make_eval_info,
+    info_e ← mk_const ``nat >>= make_eval_info,
+    (λ x : (_ × _), x.1) <$> (state_t.run
+      (reader_t.run (eval_simple e) ⟨info_b, info_e, transparency.semireducible⟩) [])) :
+        tactic (expr × expr)),
+  c ← get_cache,
+  (e₂, pr₂) ← (simplify c.numeral_simp_lemmas₁ [] e <|> return (e₁, `(@eq.refl ℤ %%e₁))),
+  (e₃, pr₃) ← (simplify c.numeral_simp_lemmas₂ [] e <|> return (e₂, `(@eq.refl ℤ %%e₂))),
+  pr ← mk_eq_trans pr₁ pr₂,
+  pr ← mk_eq_trans pr pr₃,
+  return (e₃, pr)
+
+end ring_exp
 
 meta def run (red : transparency) (G : expr)
   {α} (m : group_rel_m α) : tactic α :=
@@ -118,14 +108,20 @@ do u ← mk_meta_univ,
    ic ← mk_instance_cache G,
    zc ← mk_instance_cache `(ℤ),
    fsl ← mk_free_group_simp_lemmas,
-   -- (ic, esl) ← mk_eval_simp_lemmas ic,
+   nsl₁ ← mk_numeral_simp_lemmas₁,
+   nsl₂ ← mk_numeral_simp_lemmas₂,
+   pow ← tactic.mk_app `has_pow [G, `(int)],
+   has_pow ← mk_instance pow,
    using_new_ref ic $ λ ric,
    using_new_ref mk_buffer $ λ atoms,
-   reader_t.run m ⟨G, u, red, ric, atoms, fsl⟩
+   reader_t.run m ⟨G, u, red, ric, atoms, has_pow, fsl, nsl₁, nsl₂⟩
 
-meta def add_atom (e : expr) : group_rel_m ℕ :=
+run_cmd run (transparency.semireducible) `(units ℤ)
+  (normalize_exponent_ring_exp `((4 : ℤ))) >>= trace
+
+meta def add_atom (e : expr × option (expr × expr)) : group_rel_m ℕ :=
 ⟨λ l, do es ← read_ref l.atoms,
-  es.iterate failed (λ n e' t, t <|> (is_def_eq e e' l.red $> n.1)) <|>
+  es.iterate failed (λ n e' t, t <|> (is_def_eq e.1 e'.1 l.red $> n.1)) <|>
     (es.size <$ write_ref l.atoms (es.push_back e))⟩
 
 meta def prove_free_group_eqv (lhs : expr) : group_rel_m expr :=
@@ -133,24 +129,8 @@ do c ← get_cache,
 free_group_simp lhs c.free_group_simp_lemmas
 
 /-- Get an already encountered atom by its index. -/
-meta def get_atom (n : ℕ) : group_rel_m expr :=
+meta def get_atom (n : ℕ) : group_rel_m (expr × option (expr × expr)) :=
 ⟨λ c, do es ← read_ref c.atoms, pure (es.read' n)⟩
-
-meta def to_free_group : expr → group_rel_m free_group
-| `(%%a * %%b) :=
-  do a' ← to_free_group a,
-     b' ← to_free_group b,
-     return (a' * b')
-| `((%%a)⁻¹) :=
-  do a' ← to_free_group a, return (a'⁻¹)
-| `(@has_one.one _ _) := return 1
-| e@`((%%a) ^ (%%n)) :=
-  cond (is_numeral n)
-    (do ne ← eval_expr' ℤ n,
-        a' ← to_free_group a,
-        return (a' ^ ne))
-    (do i ← add_atom e, return (of i))
-| e := do i ← add_atom e, return (of i)
 
 lemma eval_mul_congr {G : Type*} [group G] (atoms : list G)
   (a b : G) (a' b' ab : free_group)
@@ -166,17 +146,121 @@ lemma eval_inv_congr {G : Type*} [group G] (atoms : list G)
   (ha_inv : eqv (inv_core a' 1) a_inv) :
   eval atoms a_inv = a⁻¹ :=
 by simp [inv_core_eq, ← eval_eq_of_eqv atoms ha_inv, eval_inv, eval_append, eval_one, *]
--- lemma eval_pow_conj_congr
---   {G : Type*} [group G] (atoms : list G)
---   (a conj : G) (a' conj' : free_group)
---   (ha : eval atoms a' = a)
---   (hconj : eval atoms )
 
-meta def to_free_group' (atoms : expr) :
+lemma pow_congr {G : Type*} [group G] (atoms : list G) (a : G) (n m : ℤ)
+  (a' : free_group)
+  (ha : eval atoms a' = a ^ m)
+  (h : n = m) :
+  eval atoms a' = a ^ n :=
+by subst h; assumption
+
+lemma eval_pow_add_congr {G : Type*} [group G] (atoms : list G) (a : G) (n m : ℤ)
+  (an am anam : free_group)
+  (han : eval atoms an = a ^ n)
+  (ham : eval atoms am = a ^ m)
+  (hanam : eqv (ap an am) anam) :
+  eval atoms anam = a ^ (n + m) :=
+sorry
+
+lemma eval_pow_sub_congr {G : Type*} [group G] (atoms : list G) (a : G) (n m : ℤ)
+  (an am anam : free_group)
+  (han : eval atoms an = a ^ n)
+  (ham : eval atoms an = a ^ m)
+  (hanam : eqv (inv_core an am) anam) :
+  eval atoms anam = a ^ (n - m) :=
+sorry
+
+lemma eval_pow_neg_congr {G : Type*} [group G] (atoms : list G) (a : G) (n : ℤ)
+  (an ann : free_group)
+  (han : eval atoms an = a ^ n)
+  (hanam : eqv (inv_core an 1) ann) :
+  eval atoms ann = a ^ (-n) :=
+sorry
+
+-- lemma eval_pow_bit0_congr {G : Type*} [group G] (atoms : list G) (a : G) (n : ℤ)
+--   (an ann : free_group)
+--   (han : eval atoms an = a ^ n)
+--   (hanam : eqv (ap an an) ann) :
+--   eval atoms ann = a ^ (bit0 n) :=
+-- sorry
+
+-- lemma eval_pow_bit1_congr {G : Type*} [group G] (atoms : list G) (a : G) (n : ℤ)
+--   (a' an ann : free_group)
+--   (han : eval atoms an = a ^ n)
+--   (ha : eval atoms a' = a)
+--   (hanam : eqv (ap a' (ap an an)) ann) :
+--   eval atoms ann = a ^ (bit1 n) :=
+-- sorry
+
+lemma eval_pow_one_congr {G : Type*} [group G] (atoms : list G) (a : G)
+  (a' : free_group)
+  (ha : eval atoms a' = a) :
+  eval atoms a' = a ^ (1 : ℤ) :=
+sorry
+
+meta def exp_to_free_group (atoms : expr) (a : expr) (a_index : ℕ) (a_pr : expr) :
+  Π (n : expr), group_rel_m (free_group × expr)
+| `(%%n + %%m) :=
+do
+  (an', pr₁) ← exp_to_free_group n,
+  (am', pr₂) ← exp_to_free_group m,
+  let anam' := an' * am',
+  pr_eqv ← prove_free_group_eqv `(ap %%(to_expr an') %%(to_expr am')),
+  pr ← mk_app ``eval_pow_add_congr
+    [atoms, a, n, m, to_expr an', to_expr am',
+      to_expr anam', pr₁, pr₂, pr_eqv],
+  return (anam', pr)
+| `(%%n - %%m) :=
+do
+  (an', pr₁) ← exp_to_free_group n,
+  (am', pr₂) ← exp_to_free_group m,
+  let anam' := an' * am',
+  pr_eqv ← prove_free_group_eqv `(inv_core %%(to_expr an') %%(to_expr am')),
+  pr ← mk_app ``eval_pow_sub_congr
+    [atoms, a, n, m, to_expr an', to_expr am',
+      to_expr anam', pr₁, pr₂, pr_eqv],
+  return (anam', pr)
+| `(-%%n) :=
+do
+  (an', pr₁) ← exp_to_free_group n,
+  let anam' := an'⁻¹,
+  pr_eqv ← prove_free_group_eqv `(inv_core %%(to_expr an') 1),
+  pr ← mk_app ``eval_pow_neg_congr
+    [atoms, a, n, to_expr an', to_expr anam', pr₁, pr_eqv],
+  return (anam', pr)
+-- | `(bit0 %%n) :=
+-- do
+--   (an', pr₁) ← exp_to_free_group n,
+--   let anam' := an' * an',
+--   pr_eqv ← prove_free_group_eqv `(ap an' an'),
+--   pr ← mk_app ``eval_pow_bit0_congr
+--     [atoms, a, n, to_expr an', to_expr anam', pr₁, pr_eqv],
+--   return (anam', pr)
+-- | `(bit1 %%n) :=
+-- do
+--   (an', pr₁) ← exp_to_free_group n,
+--   let ann' : free_group := [⟨a_index, ff⟩] * an' * an',
+--   pr_eqv ← prove_free_group_eqv `(ap %%a (ap %%(to_expr an') %%(to_expr an'))),
+--   pr ← mk_app ``eval_pow_bit1_congr
+--     [atoms, a, n, to_expr [⟨a_index, ff⟩], to_expr an', to_expr ann', pr₁, pr_eqv],
+--   return (ann', pr)
+| `((1 : ℤ)) :=
+  do pr ← mk_app ``eval_pow_one_congr [atoms, a, to_expr [⟨a_index, ff⟩], a_pr],
+  return ([⟨a_index, ff⟩], pr)
+| n :=
+do c ← get_cache,
+  let e : expr :=
+    expr.app (expr.app (expr.app (expr.app (expr.app (expr.const `has_pow.pow
+      [c.univ, level.zero]) c.G) (expr.const `int [])) c.has_pow) a) n,
+  i ← add_atom (e, some (a, n)),
+  pr ← mk_app `mul_one [e],
+  return ([⟨i, ff⟩], pr)
+
+meta def to_free_group (atoms : expr) :
   expr → group_rel_m (free_group × expr)
 | `(%%a * %%b) :=
-  do (a', pra) ← to_free_group' a,
-     (b', prb) ← to_free_group' b,
+  do (a', pra) ← to_free_group a,
+     (b', prb) ← to_free_group b,
      let ab' := a' * b',
      fpr ← prove_free_group_eqv `(ap %%(to_expr a') %%(to_expr b')),
      pr ← mk_app ``eval_mul_congr
@@ -188,7 +272,7 @@ meta def to_free_group' (atoms : expr) :
         fpr],
      return (a' * b', pr)
 | `((%%a)⁻¹) :=
-  do (a', pr) ← to_free_group' a,
+  do (a', pr) ← to_free_group a,
   let a'_inv := a'⁻¹,
   fpr ← prove_free_group_eqv `(inv_core %%(to_expr a') 1),
   pr ← mk_app ``eval_inv_congr
@@ -197,11 +281,17 @@ meta def to_free_group' (atoms : expr) :
 | `(@has_one.one _ _) :=
   do pr ← mk_app ``eval_one [atoms],
   return (1, pr)
-| e := do i ← add_atom e,
-  c ← get_cache,
+| `(%%a ^ (%%n)) :=
+  do (n', pr₁) ← normalize_exponent_ring_exp n,
+    i ← add_atom (a, none),
+    pr ← mk_app ``mul_one [a],
+    (w, pr₂) ← exp_to_free_group atoms a i pr n',
+    pr ← mk_app ``pow_congr
+      [atoms, a, n, n', to_expr w, pr₂, pr₁],
+    return (w, pr)
+| e := do i ← add_atom (e, none),
   pr ← mk_app `mul_one [e],
   return (of i, pr)
-
 
 local infix `*'`:70 := ap
 local infixl `≡` :50 := free_group.eqv
@@ -276,14 +366,14 @@ meta def make_proof_eq_one_expr
       (rel_inv_eq_one.read' p.rel_index),
     proof_rel₂]
 
-meta def get_atoms : group_rel_m (buffer expr) :=
+meta def get_atoms : group_rel_m (buffer (expr × option (expr × expr))) :=
 do c ← get_cache, read_ref c.atoms
 
 meta def list_atoms : group_rel_m expr :=
 do c ← get_cache,
 atoms ← read_ref c.atoms,
 atoms.to_list.foldr
-  (λ atom l, do l ← l, mk_mapp `list.cons [some c.G, some atom, some l])
+  (λ atom l, do l ← l, mk_mapp `list.cons [some c.G, some atom.1, some l])
   (mk_mapp `list.nil [some c.G])
 
 lemma eval_eq_one₂ {G : Type*} [group G] (atoms : list G)
@@ -343,8 +433,8 @@ meta def make_proof' (atoms : expr) (hyp_type hyp_pr : expr) :
   group_rel_m (free_group × free_group × expr × expr) :=
 do
   (lhs, rhs) ← is_eq hyp_type,
-  (lhsg, prl) ← to_free_group' atoms lhs,
-  (rhsg, prr) ← to_free_group' atoms rhs,
+  (lhsg, prl) ← to_free_group atoms lhs,
+  (rhsg, prr) ← to_free_group atoms rhs,
   let lr := lhsg * rhsg⁻¹,
   pr ← mk_app ``eval_eq_one₂
     [atoms, lhs, rhs, hyp_pr, to_expr lhsg, to_expr rhsg, to_expr lr,
@@ -352,22 +442,6 @@ do
   (lr, pr) ← cyclically_reduce_rel atoms lr pr,
   (lr_inv, pr_inv) ← make_proof_inv_eq_one atoms lr pr,
   return (lr, lr_inv, pr, pr_inv)
-
-meta def mk_list_free_group : list (expr × expr) → group_rel_m
-  (list (expr × -- proof
-    expr × expr × -- lhs rhs
-    free_group × free_group -- lhs ehs
-    ))
-| []                  := return []
-| ((t, e)::l) :=
-  match t with
-  | `(%%e₁= %%e₂) :=
-    do l ← mk_list_free_group l,
-    lhsg ← to_free_group e₁,
-    rhsg ← to_free_group e₂,
-    return ((e, e₁, e₂, lhsg, rhsg)::l)
-  | _ := mk_list_free_group l
-  end
 
 section subst
 
@@ -436,30 +510,30 @@ perform_substs_core atoms p [] tgt
 
 end subst
 
-meta def collect_like_exponents : group_rel_m
-  (rb_map expr-- exponee
-  (list
-  (expr × --exponent and exponee
-    option expr --exponent
-    × ℕ -- index in buffer of atoms
-    ))) :=
-do c ← get_cache,
-  atoms ← read_ref c.atoms,
-  atoms.iterate
-    (return mk_rb_map)
-    (λ i atom m,
-      do rb ← m,
-        match atom with
-        | A@`((%%a)^(%%n)) :=
-          let e : tactic (rb_map expr (list (expr × option expr × ℕ))) :=
-            rb.fold failure (λ e l t, t <|> is_def_eq e a >>
-              return (rb.insert e ((A, some n, i)::l))) in
-          e <|> return (rb.insert a [(A, some n, i)])
-        | `(%%a) := let e : tactic (rb_map expr (list (expr × option expr × ℕ))) :=
-            rb.fold failure (λ e l t, t <|> is_def_eq e a >>
-              return (rb.insert e ((a, none, i)::l))) in
-            e <|> return (rb.insert a [(a, none, i)])
-        end).
+-- meta def collect_like_exponents : group_rel_m
+--   (rb_map expr-- exponee
+--   (list
+--   (expr × --exponent and exponee
+--     option expr --exponent
+--     × ℕ -- index in buffer of atoms
+--     ))) :=
+-- do c ← get_cache,
+--   atoms ← read_ref c.atoms,
+--   atoms.iterate
+--     (return mk_rb_map)
+--     (λ i atom m,
+--       do rb ← m,
+--         match atom with
+--         | A@`((%%a)^(%%n)) :=
+--           let e : tactic (rb_map expr (list (expr × option expr × ℕ))) :=
+--             rb.fold failure (λ e l t, t <|> is_def_eq e a >>
+--               return (rb.insert e ((A, some n, i)::l))) in
+--           e <|> return (rb.insert a [(A, some n, i)])
+--         | `(%%a) := let e : tactic (rb_map expr (list (expr × option expr × ℕ))) :=
+--             rb.fold failure (λ e l t, t <|> is_def_eq e a >>
+--               return (rb.insert e ((a, none, i)::l))) in
+--             e <|> return (rb.insert a [(a, none, i)])
+--         end).
 
 lemma eval_gpow_gpow_comm {G : Type*} [group G] (atoms : list G) (i j : ℕ)
   (g : G) (m n : ℤ) (hi : nth atoms i = g ^ m) (hj : nth atoms j = g ^ n) :
@@ -522,33 +596,76 @@ l.mfoldl
   []
 
 meta def make_pow_comm_proofs (atoms : expr) :
-  group_rel_m (list (free_group × free_group × expr × expr)) :=
-do rb ← collect_like_exponents,
-rb.fold (return []) (λ a l m,
-  do prs ← m,
-    new_prs ← make_pow_comm_proof atoms a l,
-    return (new_prs ++ prs))
+  Π (atomsl : list (expr × option (expr × expr) × ℕ)),
+  group_rel_m (list (free_group × free_group × expr × expr))
+| [] := return []
+| ((an₁, some (a₁, n₁), i) :: l) :=
+do prs ← make_pow_comm_proofs l,
+  l.mfoldl
+  (λ prs e,
+    match e with
+    | (a, none, j) := (do
+      is_def_eq a a₁,
+      peq₁ ← mk_eq_refl an₁,
+      peq₂ ← mk_eq_refl a,
+      pr ← mk_app ``eval_gpow_comm
+        [atoms, reflect i, reflect j, a, n₁, peq₁, peq₂],
+      pr ← note_anon none pr,
+      let rel : free_group := [⟨i, ff⟩, ⟨j, ff⟩, ⟨i, tt⟩, ⟨j, tt⟩],
+      (rel_inv, pr_inv) ← make_proof_inv_eq_one atoms rel pr,
+      return ((rel, rel_inv, pr, pr_inv) :: prs)) <|> return prs
+    | (an₂, some (a₂, n₂), j) := (do
+      is_def_eq a₁ a₂,
+      peq₁ ← mk_eq_refl an₁,
+      peq₂ ← mk_eq_refl an₂,
+      pr ← mk_app ``eval_gpow_gpow_comm
+        [atoms, reflect i, reflect j, a₁, n₁, n₂, peq₁, peq₂],
+      pr ← note_anon none pr,
+      let rel : free_group := [⟨i, ff⟩, ⟨j, ff⟩, ⟨i, tt⟩, ⟨j, tt⟩],
+      (rel_inv, pr_inv) ← make_proof_inv_eq_one atoms rel pr,
+      return ((rel, rel_inv, pr, pr_inv) :: prs)) <|> return prs
+    end)
+  prs
+| ((a, none, i) :: l) :=
+do prs ← make_pow_comm_proofs l,
+  l.mfoldl
+  (λ prs e,
+    match e with
+    | (an₂, none, j) := return prs
+    | (an₂, some (a₂, n₂), j) := (do
+      is_def_eq a a₂,
+      peq₁ ← mk_eq_refl a,
+      peq₂ ← mk_eq_refl an₂,
+      pr ← mk_app ``eval_gpow_comm
+        [atoms, reflect j, reflect i, a, n₂, peq₂, peq₁],
+      pr ← note_anon none pr,
+      let rel : free_group := [⟨j, ff⟩, ⟨i, ff⟩, ⟨j, tt⟩, ⟨i, tt⟩],
+      (rel_inv, pr_inv) ← make_proof_inv_eq_one atoms rel pr,
+      return ((rel, rel_inv, pr, pr_inv) :: prs)) <|> return prs
+    end)
+  prs
 
 meta def simp_rel (sl : simp_lemmas) (pr : expr) : tactic (expr × expr) :=
 do t ← infer_type pr,
 (do (t, pr') ← simplify sl [] t,
-new_pr ← mk_eq_mp pr' pr,
+new_pr ← mk_eq_mp pr' pr, trace t,
 return (t, new_pr)) <|> return (t, pr)
 
-meta def group_rel (sl : simp_lemmas) (hyps : list expr) (tlhs : expr) (trhs : expr) :
+meta def group_rel_aux (isl : simp_lemmas) (hyps : list expr) (tlhs : expr) (trhs : expr) :
   group_rel_m unit :=
 do
-  type_hyps ← hyps.mmap (lift ∘ infer_type),
   c ← get_cache,
   list_G ← tactic.mk_app `list [c.G],
   atoms' ← mk_meta_var list_G,
-  hyps ← lift $ hyps.mmap (simp_rel sl),
-  hyps ← hyps.mmap (λ a, make_proof' atoms' a.1 a.2),
-  (lhsg, prl) ← to_free_group' atoms' tlhs,
-  (rhsg, prr) ← to_free_group' atoms' trhs,
+  hyps' ← lift $ hyps.mmap (simp_rel isl),
+  hyps₂ ← hyps'.mmap (λ a, make_proof' atoms' a.1 a.2),
+  (lhsg, prl) ← to_free_group atoms' tlhs,
+  (rhsg, prr) ← to_free_group atoms' trhs,
   atoms ← list_atoms,
   unify atoms' atoms,
-  pow_comm_proofs ← make_pow_comm_proofs atoms,
+  batoms ← get_atoms,
+  pow_comm_proofs ← make_pow_comm_proofs atoms
+    (batoms.iterate [] (λ i x l, (x.1, x.2, i.1) :: l)),
   a ← get_atoms,
   let tgt := lhsg * rhsg⁻¹,
   pr_eqv ← prove_free_group_eqv `(%%(to_expr tgt) *' %%(to_expr rhsg)),
@@ -556,7 +673,7 @@ do
     [atoms, tlhs, trhs, to_expr lhsg, to_expr rhsg, to_expr tgt, prl, prr,
       pr_eqv],
   tactic.apply eq_of_eval_eq_one,
-  (new_p, tgt) ← perform_substs atoms (hyps ++ pow_comm_proofs) tgt,
+  (new_p, tgt) ← perform_substs atoms (hyps₂ ++ pow_comm_proofs) tgt,
   trace (pow_comm_proofs.map prod.fst),
   solution ← solve (new_p.map prod.fst) tgt a.size.succ,
   let path := trace_path solution.2,
@@ -571,8 +688,6 @@ do
   pr ← mk_app ``eq_one_of_proof_eq_one [atoms, to_expr tgt, e],
   tactic.exact pr
 
-end group_rel_m
-
 end group_rel
 
 namespace tactic.interactive
@@ -580,13 +695,13 @@ namespace tactic.interactive
 open interactive.types interactive tactic expr group_rel
 
 meta def group_rel (hyps : parse pexpr_list) : tactic unit :=
-do sl ← gpow_norm_simp_set,
-tactic.try (simp_target sl []),
+do isl ← mk_int_to_nat_simp_lemmas,
+ tactic.try (simp_target isl []),
 tgt ← target,
 (lhs, rhs) ← is_eq tgt,
 G ← infer_type lhs,
 hyps' : list expr ← hyps.mmap i_to_expr,
-group_rel_m.run transparency.semireducible G (group_rel_m.group_rel sl hyps' lhs rhs)
+run transparency.semireducible G (group_rel_aux isl hyps' lhs rhs)
 
 end tactic.interactive
 

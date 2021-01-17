@@ -116,9 +116,9 @@ meta def get_leaf_data : leaves_m leaf_data := reader_t.read
 
 meta def add_path (rw : rewrite) : leaves_m unit :=
 do ⟨rel, old_word, path_length⟩ ← get_leaf_data,
-  let new_word := cyclically_reduce (old_word.take rw.word_start_index
-    * ((rel.rel.rotate rw.rel_letter_index))⁻¹
-    * old_word.drop (rw.word_start_index)), --check if this is correct
+  let new_word := cyclically_reduce (old_word.take rw.word_start_index *
+    (rel.rel.rotate rw.rel_letter_index)⁻¹ *
+    old_word.drop (rw.word_start_index)), --check if this is correct
   no_atoms : ℕ ← tree_m.lift get_no_atoms,
   let new_cost := cost no_atoms new_word,
   let new_path : path_step :=
@@ -284,28 +284,6 @@ meta def trace_path (seen : rb_map free_group path_step) : list path_step :=
 trace_path_core 1 seen
 
 universe u
-
-inductive proof_eq_one
-  {G : Type u} [group G] (atoms : list G) :
-  free_group → Type u
-| one : proof_eq_one 1
-| step : Π (word₁ rel word₂ conj old_word new_word : free_group),
-  proof_eq_one old_word →
-  (word₁ ++ word₂) = old_word
-  → eval atoms rel = 1
-  → conj * word₁ * rel * word₂ * conj⁻¹ = new_word
-  → proof_eq_one new_word
-
-theorem eq_one_of_proof_eq_one {G : Type*} [group G] (atoms : list G) (g : free_group)
-  (h : proof_eq_one atoms g) : eval atoms g = 1 :=
-begin
-  induction h with word₁ rel word₂ conj old_word new_word op h₁ h₂ h₃ ih,
-  { refl },
-  { subst h₃,
-    simp only [eval_mul],
-    rw [h₂, mul_one, mul_assoc (eval atoms conj), ← eval_append, h₁, ih,
-      mul_one, eval_inv, mul_inv_self] }
-end
 
 meta def check_path_step (rels : list (free_group)) : path_step → bool
 | ⟨rel_index, rel_is_inv, old_word, new_word, _, word_start_index, rel_letter_index, _⟩ :=
