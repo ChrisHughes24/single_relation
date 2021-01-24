@@ -1,16 +1,13 @@
 import .tactic
 
-
 set_option profiler true
 variables {G : Type*} [group G]
   (a b c d e f g h i j k l m n o p q r s t u v w x y z : G)
 
-
-
 lemma test1
   (h₁ : a * b^2 = b * a)
   (h₂ : b * a^2 = a * b) :
-  a = b :=
+  a = 1 :=
 begin
   group_rel [h₁, h₂],
 
@@ -38,7 +35,16 @@ begin
 
 end
 
-lemma test3c (h : a * b = b ^ 2 * a) :
+lemma test3c (hx : x = b * a) (hy : y = a ^ 2 * b * c)
+  (hxy : x * y * x⁻¹ * y ^ (-2 : int) = 1) :
+   y * (x ^ 3 * y * x ^ (-3 : ℤ)) =
+      (x ^ 3 * y * x ^ (-3 : ℤ)) * y :=
+begin
+  group_rel [hx, hy, hxy],
+
+end
+
+lemma test3d (h : a * b = b ^ 2 * a) :
   b * (a ^ 5 * b * a ^ (-5 : ℤ)) =
       (a ^ 5 * b * a ^ (-5 : ℤ)) * b :=
 begin
@@ -50,9 +56,8 @@ lemma test4 (h : a * b = b ^ 2 * a) (n : ℕ) :
   a ^ n * b * a ^ (-n : ℤ) = b ^ (2 ^ n) :=
 begin
   induction n with n ih,
-  { simp },
-  { rw [pow_succ' 2, pow_mul],
-    group_rel [h, ih] },
+  { group_rel [h] },
+  { group_rel [h, ih] },
 end
 
 lemma test6 (h : ∀ g : G, g ^ 2 = 1) : a * b = b * a :=
@@ -72,4 +77,3 @@ by group_rel []
 
 lemma test9 (h : a * b * a * b * b = 1) : a * b = b * a :=
 by group_rel [h]
-#print test1

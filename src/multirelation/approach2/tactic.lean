@@ -1,4 +1,4 @@
-import .approach2
+import .approach2_ref
 
 namespace group_rel
 open expr tactic free_group native
@@ -32,7 +32,6 @@ meta def gpow_norm_simp_set : tactic simp_lemmas :=
 mk_simp_set tt []
   [symm_expr ``(gpow_coe_nat),
    expr ``(gpow_add),
-   expr ``(gpow_bit0),
    expr ``(gpow_neg),
    expr ``(bit0),
    expr ``(bit1),
@@ -47,7 +46,12 @@ mk_simp_set tt []
    expr ``(int.coe_nat_zero),
    expr ``(int.coe_nat_one),
    expr ``(int.coe_nat_mul),
-   expr ``(nat.succ_eq_add_one)]
+   expr ``(nat.succ_eq_add_one),
+   expr ``(mul_one),
+   expr ``(one_mul),
+   expr ``(pow_succ),
+   expr ``(pow_zero),
+   expr ``(pow_one)]
 >>= λ x, return x.fst
 
 end
@@ -76,7 +80,6 @@ ic_lift' cache.ic
 /-- make the application `n G i l`, where `i` is some instance found in the cache for `G` -/
 meta def mk_app (n : name) (l : list expr) : group_rel_m expr :=
 ic_lift $ λ ic, ic.mk_app n l
-
 
 meta def mk_eval_simp_lemmas (ic : instance_cache) :
   tactic (instance_cache × simp_lemmas) :=
@@ -166,11 +169,6 @@ lemma eval_inv_congr {G : Type*} [group G] (atoms : list G)
   (ha_inv : eqv (inv_core a' 1) a_inv) :
   eval atoms a_inv = a⁻¹ :=
 by simp [inv_core_eq, ← eval_eq_of_eqv atoms ha_inv, eval_inv, eval_append, eval_one, *]
--- lemma eval_pow_conj_congr
---   {G : Type*} [group G] (atoms : list G)
---   (a conj : G) (a' conj' : free_group)
---   (ha : eval atoms a' = a)
---   (hconj : eval atoms )
 
 meta def to_free_group' (atoms : expr) :
   expr → group_rel_m (free_group × expr)
@@ -201,7 +199,6 @@ meta def to_free_group' (atoms : expr) :
   c ← get_cache,
   pr ← mk_app `mul_one [e],
   return (of i, pr)
-
 
 local infix `*'`:70 := ap
 local infixl `≡` :50 := free_group.eqv
@@ -290,10 +287,11 @@ lemma eval_eq_one₂ {G : Type*} [group G] (atoms : list G)
   (lhs rhs : G) (h : lhs = rhs) (lhsg rhsg lr : free_group)
   (hlhs : eval atoms lhsg = lhs)
   (hrhs : eval atoms rhsg = rhs)
-  (heq : lr = lhsg * rhsg⁻¹) : eval atoms lr = 1 :=
+  (heqv : lr *' rhsg ≡ lhsg) :
+  eval atoms lr = 1 :=
 begin
-  substs lr lhs,
-  simp [hrhs, eval_mul, eval_inv, hlhs]
+  substs lhs rhs,
+  rwa [← eval_eq_of_eqv _ heqv, eval_ap, ← eq_mul_inv_iff_mul_eq, mul_inv_self] at hlhs
 end
 
 lemma eq_of_eval_eq_one₂ {G : Type*} [group G] (atoms : list G)
@@ -346,11 +344,14 @@ do
   (lhsg, prl) ← to_free_group' atoms lhs,
   (rhsg, prr) ← to_free_group' atoms rhs,
   let lr := lhsg * rhsg⁻¹,
+  pr_eqv ← prove_free_group_eqv `(%%(to_expr lr) *' %%(to_expr rhsg)),
   pr ← mk_app ``eval_eq_one₂
     [atoms, lhs, rhs, hyp_pr, to_expr lhsg, to_expr rhsg, to_expr lr,
-    prl, prr, `(@eq.refl free_group %%(to_expr lr))],
+      prl, prr, pr_eqv],
   (lr, pr) ← cyclically_reduce_rel atoms lr pr,
   (lr_inv, pr_inv) ← make_proof_inv_eq_one atoms lr pr,
+  pr ← note_anon none pr,
+  pr_inv ← note_anon none pr_inv,
   return (lr, lr_inv, pr, pr_inv)
 
 meta def mk_list_free_group : list (expr × expr) → group_rel_m
@@ -542,10 +543,10 @@ do
   c ← get_cache,
   list_G ← tactic.mk_app `list [c.G],
   atoms' ← mk_meta_var list_G,
-  hyps ← lift $ hyps.mmap (simp_rel sl),
-  hyps ← hyps.mmap (λ a, make_proof' atoms' a.1 a.2),
   (lhsg, prl) ← to_free_group' atoms' tlhs,
   (rhsg, prr) ← to_free_group' atoms' trhs,
+  hyps ← lift $ hyps.mmap $ simp_rel sl,
+  hyps ← hyps.mmap (λ a, make_proof' atoms' a.1 a.2),
   atoms ← list_atoms,
   unify atoms' atoms,
   pow_comm_proofs ← make_pow_comm_proofs atoms,
@@ -553,20 +554,19 @@ do
   let tgt := lhsg * rhsg⁻¹,
   pr_eqv ← prove_free_group_eqv `(%%(to_expr tgt) *' %%(to_expr rhsg)),
   eq_of_eval_eq_one ← mk_app ``eq_of_eval_eq_one₂
-    [atoms, tlhs, trhs, to_expr lhsg, to_expr rhsg, to_expr tgt, prl, prr,
-      pr_eqv],
+    [atoms, tlhs, trhs, to_expr lhsg, to_expr rhsg, to_expr tgt, prl, prr, pr_eqv],
   tactic.apply eq_of_eval_eq_one,
-  (new_p, tgt) ← perform_substs atoms (hyps ++ pow_comm_proofs) tgt,
+  (hyps, tgt) ← perform_substs atoms (hyps ++ pow_comm_proofs) tgt,
   trace (pow_comm_proofs.map prod.fst),
-  solution ← solve (new_p.map prod.fst) tgt a.size.succ,
+  solution ← solve (hyps.map prod.fst) tgt a.size,
   let path := trace_path solution.2,
   tactic.trace ("path length = " ++ repr path.length),
   tactic.trace atoms,
   e ← make_proof_eq_one_expr atoms
-    (list.to_buffer (new_p.map (λ x, x.2.2.1)))
-    (list.to_buffer (new_p.map (λ x, x.2.2.2)))
-    (list.to_buffer (new_p.map (λx, x.1)))
-    (list.to_buffer (new_p.map (λx, x.2.1)))
+    (list.to_buffer (hyps.map (λ x, x.2.2.1)))
+    (list.to_buffer (hyps.map (λ x, x.2.2.2)))
+    (list.to_buffer (hyps.map (λx, x.1)))
+    (list.to_buffer (hyps.map (λx, x.2.1)))
     path.reverse,
   pr ← mk_app ``eq_one_of_proof_eq_one [atoms, to_expr tgt, e],
   tactic.exact pr
