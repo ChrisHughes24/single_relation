@@ -1,4 +1,4 @@
-import .approach2
+import .approach2_ref
 
 namespace group_rel
 open expr tactic free_group native
@@ -48,7 +48,10 @@ mk_simp_set tt []
    expr ``(int.coe_nat_mul),
    expr ``(nat.succ_eq_add_one),
    expr ``(mul_one),
-   expr ``(one_mul)]
+   expr ``(one_mul),
+   expr ``(pow_succ),
+   expr ``(pow_zero),
+   expr ``(pow_one)]
 >>= λ x, return x.fst
 
 end
@@ -77,7 +80,6 @@ ic_lift' cache.ic
 /-- make the application `n G i l`, where `i` is some instance found in the cache for `G` -/
 meta def mk_app (n : name) (l : list expr) : group_rel_m expr :=
 ic_lift $ λ ic, ic.mk_app n l
-
 
 meta def mk_eval_simp_lemmas (ic : instance_cache) :
   tactic (instance_cache × simp_lemmas) :=
@@ -533,7 +535,7 @@ do t ← infer_type pr,
 (do (t, pr') ← simplify sl [] t,
 new_pr ← mk_eq_mp pr' pr,
 return (t, new_pr)) <|> return (t, pr)
-#print eq_of_eval_eq_one₂
+
 meta def group_rel (sl : simp_lemmas) (hyps : list expr) (tlhs : expr) (trhs : expr) :
   group_rel_m unit :=
 do

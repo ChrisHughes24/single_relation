@@ -59,8 +59,8 @@ end
 open free_group
 
 #eval let r := (of 0 * of 1 * (of 0)⁻¹ * (of 1) ^ (-2 : int)) in
-(golf_solve r ∅ ((of 0) ^ (-5 : int) * of 1 * (of 0) ^ 5 * of 1 * (of 0) ^
-  (-5 : int) * (of 1)⁻¹ * of 0 ^ 5 * (of 1)⁻¹)).iget.left.length
+(golf_solve r ∅ ((of 0) ^ (5 : int) * of 1 * (of 0) ^ (- 5 : int) * of 1 * (of 0) ^
+  (5 : int) * (of 1)⁻¹ * of 0 ^ (- 5 : int) * (of 1)⁻¹)).iget.left.length
 
 -- #eval let a := of 1 \ in let b := of 0 in
 --   let r := a * b * a⁻¹ * b ^ (-2 : int) in

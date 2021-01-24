@@ -44,50 +44,67 @@ meta structure rewrites : Type :=
 
 @[derive monad] meta def tree_m : Type → Type :=
 except_t path_step
-  (state_t (
-      rb_lmap (ℕ × ℕ) path_step × --leaves, indexed by word length and then path length
-      rb_map (free_group) (path_step) --seen
-      ) (reader (buffer relation × ℕ)))
+  (reader_t (
+      tactic.ref (rb_lmap (ℕ × ℕ) path_step) × --leaves, indexed by word length and then path length
+      tactic.ref (rb_map (free_group) (path_step)) ×--seen
+      buffer relation × ℕ)
+    tactic)
 
 meta instance {α : Type} : has_coe (option α) (tree_m α) :=
 ⟨λ o, o.elim ⟨return (except.error ⟨1, ff, 1, 1, 1, 1, 1, 0⟩)⟩ return⟩
 
 meta def get_rels : tree_m (buffer relation) :=
-do x ← except_t.lift $ state_t.lift $ reader_t.read, return x.1
+do x ← except_t.lift $ reader_t.read, return x.2.2.1
 
 meta def get_no_atoms : tree_m ℕ :=
-do x ← except_t.lift $ state_t.lift $ reader_t.read, return x.2
+do x ← except_t.lift $ reader_t.read, return x.2.2.2
 
-meta def leaves : tree_m (rb_lmap (ℕ × ℕ) path_step) :=
-do l ← except_t.lift state_t.get, return l.1
+meta def get_leaves : tree_m (rb_lmap (ℕ × ℕ) path_step) :=
+do x ← except_t.lift $ reader_t.read,
+except_t.lift $ reader_t.lift $ tactic.read_ref x.1
+
+meta def get_seen : tree_m (rb_map free_group path_step) :=
+do x ← except_t.lift $ reader_t.read,
+except_t.lift $ reader_t.lift $ tactic.read_ref x.2.1
+
+meta def write_leaves (rb : rb_lmap (ℕ × ℕ) path_step): tree_m unit :=
+do x ← except_t.lift $ reader_t.read,
+except_t.lift $ reader_t.lift $ tactic.write_ref x.1 rb
+
+meta def write_seen (rb : rb_map free_group path_step) : tree_m unit :=
+do x ← except_t.lift $ reader_t.read,
+except_t.lift $ reader_t.lift $ tactic.write_ref x.2.1 rb
 
 meta def trace_tree_size : tree_m unit :=
-do l ← leaves,
+do l ← get_leaves, s ← get_seen,
 let n := (l.to_list.map prod.snd).join.length,
-trace ("tree size = " ++ repr n) return ()
+let m := l.to_list.length,
+trace ("tree size = " ++ repr n ++ "\n" ++ "seen nodes = " ++ repr m) return ()
 
 meta def get_min_leaf_and_erase : tree_m path_step :=
-do leaves ← except_t.lift state_t.get,
-l ← leaves.1.min,
+do leaves ← get_leaves,
+seen ← get_seen,
+l ← leaves.min,
 match l with
 | [] := return (default _)
 | [p]               :=
-  match leaves.2.contains p.new_word with
-  | ff := do except_t.lift (state_t.modify
-    (λ rb,
-      (rb.1.erase (p.new_word_cost, p.path_length), rb.2.insert p.new_word p))),
-      return p
-  | tt := do except_t.lift (state_t.modify
-        (λ rb, (rb.1.erase (p.new_word_cost, p.path_length), rb.2))),
-     get_min_leaf_and_erase
+  match seen.contains p.new_word with
+  | ff := do
+    write_leaves (leaves.erase (p.new_word_cost, p.path_length)),
+    write_seen (seen.insert p.new_word p),
+    return p
+  | tt := do
+    write_leaves (leaves.erase (p.new_word_cost, p.path_length)),
+    get_min_leaf_and_erase
   end
 | (p :: l'@(_ :: _)) :=
-  match leaves.2.contains p.new_word with
-  | ff := do except_t.lift (state_t.modify
-      (λ rb, (rb_map.insert rb.1 (p.new_word_cost, p.path_length) l', rb.2.insert p.new_word p))),
+  match seen.contains p.new_word with
+  | ff := do
+    write_leaves (rb_map.insert leaves (p.new_word_cost, p.path_length) l'),
+    write_seen (seen.insert p.new_word p),
     return p
-  | tt := do except_t.lift (state_t.modify
-    (λ rb, (rb_map.insert rb.1 (p.new_word_cost, p.path_length) l', rb.2))),
+  | tt := do
+    write_leaves (rb_map.insert leaves (p.new_word_cost, p.path_length) l'),
     get_min_leaf_and_erase
   end
 end
@@ -126,10 +143,8 @@ do ⟨rel, old_word, path_length⟩ ← get_leaf_data,
   let new_path : path_step :=
     ⟨rel.rel_index, rel.is_inv, old_word, new_word,
       new_cost, rw.word_start_index, rw.rel_letter_index, path_length⟩,
-  reader_t.lift $ state_t.lift $ except_t.lift $ state_t.modify
-  (λ rb, let (rb₁, rb₂) := rb in
-    (rb_lmap.insert rb₁  (new_cost, path_length) new_path, rb₂))
-  --(λ rb, (rb_lmap.insert rb.1 (new_cost, path_length) new_path, rb.2)
+  leaves ← tree_m.lift get_leaves,
+  tree_m.lift $ write_leaves (leaves.insert (new_cost, path_length) new_path)
 
 meta def match_starting_rewrites : leaves_m unit :=
 do c ← get_rewrites,
@@ -264,26 +279,28 @@ def max_letter (w : free_group) : ℕ :=
 (w.argmax (λ b : ℕ × bool, b.1)).iget.fst
 
 meta def solve (rels : list (free_group)) (word : free_group) (no_atoms : ℕ) :
-  option (path_step × rb_map (free_group) path_step) :=
+  tactic (path_step × rb_map (free_group) path_step) :=
 let max_letter : ℕ := max (max_letter (rels.argmax max_letter).iget) (max_letter word) in
 let i1 := except_t.run solve_aux in
-let i2 := state_t.run i1
-  (rb_lmap.insert (rb_lmap.mk _ _) (word.length, 0)
-    ⟨0, ff, 1, word, word.length, 0, 0, 0⟩,
-    mk_rb_map) in
-let i3 := reader_t.run i2 (make_rels rels max_letter, no_atoms) in
-except.cases_on i3.1 (λ x, return (x, i3.2.2)) (λ x, none)
+do tactic.using_new_ref (rb_lmap.insert (rb_lmap.mk _ path_step) (word.length, 0)
+    ⟨0, ff, 1, word, word.length, 0, 0, 0⟩) $ λ leaves,
+do tactic.using_new_ref mk_rb_map $ λ seen,
+do i2 ← reader_t.run i1
+  (leaves, seen, make_rels rels max_letter, no_atoms),
+--seen ← tactic.read_ref i2.2.1,
+except.cases_on i2 (λ x, do seen ← tactic.read_ref seen, return (x, seen))
+  (λ x, failure)
 
-meta def solve' (rels : list (free_group)) (word : free_group) (no_atoms) :
-  option (path_step × rb_lmap (ℕ × ℕ) (path_step)) :=
-let max_letter : ℕ := max (max_letter (rels.argmax max_letter).iget) (max_letter word) in
-let i1 := except_t.run solve_aux in
-let i2 := state_t.run i1
-  (rb_lmap.insert mk_rb_map (word.length, 0)
-    ⟨0, ff, 1, word, word.length, 0, 0, 0⟩,
-    mk_rb_map) in
-let i3 := reader_t.run i2 (make_rels rels max_letter, no_atoms) in
-except.cases_on i3.1 (λ _, none) (λ x, return (x, i3.2.1))
+-- meta def solve' (rels : list (free_group)) (word : free_group) (no_atoms) :
+--   option (path_step × rb_lmap (ℕ × ℕ) (path_step)) :=
+-- let max_letter : ℕ := max (max_letter (rels.argmax max_letter).iget) (max_letter word) in
+-- let i1 := except_t.run solve_aux in
+-- let i2 := state_t.run i1
+--   (rb_lmap.insert mk_rb_map (word.length, 0)
+--     ⟨0, ff, 1, word, word.length, 0, 0, 0⟩,
+--     mk_rb_map) in
+-- let i3 := reader_t.run i2 (make_rels rels max_letter, no_atoms) in
+-- except.cases_on i3.1 (λ _, none) (λ x, return (x, i3.2.1))
 
 meta def trace_path_core : Π (word : free_group)
   (seen : rb_map free_group path_step), list path_step
