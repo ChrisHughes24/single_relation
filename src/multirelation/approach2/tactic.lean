@@ -1,4 +1,5 @@
 import .approach2_ref
+import multirelation.approach2.certificate
 
 namespace group_rel
 open expr tactic free_group native
@@ -536,6 +537,19 @@ do t ← infer_type pr,
 new_pr ← mk_eq_mp pr' pr,
 return (t, new_pr)) <|> return (t, pr)
 
+meta def to_certificate_expr (atoms : expr)
+  (rel_eq_one : buffer expr)
+  (rel_inv_eq_one : buffer expr)
+  (rels : buffer free_group)
+  (rels_inv : buffer free_group) :
+  list proof_step → group_rel_m expr
+| [] := mk_app ``certificate.one [atoms]
+| (⟨c, r, i, b⟩ :: l) :=
+  do cert ← to_certificate_expr l,
+  --trace (cond b (rel_eq_one.read' i) (rel_inv_eq_one.read' i)),
+  mk_app ``certificate.step [atoms, to_expr c, to_expr r,
+    cond b (rel_inv_eq_one.read' i) (rel_eq_one.read' i), cert]
+
 meta def group_rel (sl : simp_lemmas) (hyps : list expr) (tlhs : expr) (trhs : expr) :
   group_rel_m unit :=
 do
@@ -557,18 +571,25 @@ do
     [atoms, tlhs, trhs, to_expr lhsg, to_expr rhsg, to_expr tgt, prl, prr, pr_eqv],
   tactic.apply eq_of_eval_eq_one,
   (hyps, tgt) ← perform_substs atoms (hyps ++ pow_comm_proofs) tgt,
-  trace (pow_comm_proofs.map prod.fst),
   solution ← solve (hyps.map prod.fst) tgt a.size,
-  let path := trace_path solution.2,
+  let path := (trace_path solution.2).reverse,
   tactic.trace ("path length = " ++ repr path.length),
-  tactic.trace atoms,
-  e ← make_proof_eq_one_expr atoms
+  let golf_path :=  (to_list_proof_step
+      (list.to_buffer (hyps.map (λx, x.1)))
+      (list.to_buffer (hyps.map (λx, x.2.1)))
+      path),
+  tactic.trace ("golfed path length = " ++ repr golf_path.length),
+  cert ← to_certificate_expr atoms
     (list.to_buffer (hyps.map (λ x, x.2.2.1)))
     (list.to_buffer (hyps.map (λ x, x.2.2.2)))
     (list.to_buffer (hyps.map (λx, x.1)))
-    (list.to_buffer (hyps.map (λx, x.2.1)))
-    path.reverse,
-  pr ← mk_app ``eq_one_of_proof_eq_one [atoms, to_expr tgt, e],
+    (list.to_buffer (hyps.map (λx, x.2.1))) golf_path,
+  -- tactic.trace ("path length = " ++ repr path.length),
+  -- tactic.trace atoms,
+  atoms ← list_atoms,
+  cert_eval ← mk_app ``certificate.eval [atoms, cert],
+  cert_eqv ← prove_free_group_eqv cert_eval,
+  pr ← mk_app ``eq_one_of_cert_eval_eq_one [atoms, to_expr tgt, cert, cert_eqv],
   tactic.exact pr
 
 end group_rel_m
@@ -586,7 +607,9 @@ tgt ← target,
 (lhs, rhs) ← is_eq tgt,
 G ← infer_type lhs,
 hyps' : list expr ← hyps.mmap i_to_expr,
-group_rel_m.run transparency.semireducible G (group_rel_m.group_rel sl hyps' lhs rhs)
+group_rel_m.run transparency.semireducible G (group_rel_m.group_rel sl hyps' lhs rhs),
+tactic.try `[simp only [group_rel.free_group.certificate.eval]],
+tactic.try (tactic.simp_target sl)
 
 end tactic.interactive
 

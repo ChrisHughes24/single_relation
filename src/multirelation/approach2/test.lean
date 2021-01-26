@@ -4,17 +4,33 @@ set_option profiler true
 variables {G : Type*} [group G]
   (a b c d e f g h i j k l m n o p q r s t u v w x y z : G)
 
+open group_rel.free_group
+-- #print group_rel.free_group.certificate.step
+
+lemma test0 (h : a * b = b * a) : a * b = b * a :=
+by group_rel [h]
+
+lemma test0a (h : a * b = b * a) : a * a * b * a = a * b * a * a :=
+by group_rel [h]
+
+lemma test0b (h : a * b = b * a) : b⁻¹ * a⁻¹ = a⁻¹ * b⁻¹ :=
+by group_rel [h]
+
 lemma test1
   (h₁ : a * b^2 = b * a)
   (h₂ : b * a^2 = a * b) :
-  a = 1 :=
+  b = 1 :=
 begin
   group_rel [h₁, h₂],
 
+
 end
 
+set_option pp.implicit true
 lemma test2 (h : a * b * a⁻¹ = 1) : b = 1 :=
-by group_rel [h]
+begin
+  group_rel [h],
+end
 
 lemma test3 (h : a * b = b ^ 2 * a) :
   b * (a ^ 4 * b * a ^ (-4 : ℤ)) =
@@ -55,7 +71,7 @@ end
 lemma test4 (h : a * b = b ^ 2 * a) (n : ℕ) :
   a ^ n * b * a ^ (-n : ℤ) = b ^ (2 ^ n) :=
 begin
-  induction n with n ih,
+  induction n with k ih,
   { group_rel [h] },
   { group_rel [h, ih] },
 end

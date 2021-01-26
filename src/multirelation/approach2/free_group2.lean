@@ -223,6 +223,7 @@ meta def cyclically_reduce_conj_aux : Π (w wr : free_group), free_group
     then [⟨i₁, b₁⟩] ++ cyclically_reduce_conj_aux l₁.init l₂.init
     else 1
 
+/-- if `c = cyclically_reduce_conj w` then `c⁻¹ * w * c` is cyclically reduced-/
 meta def cyclically_reduce_conj (w : free_group) : free_group :=
 cyclically_reduce_conj_aux w w.reverse
 
@@ -247,6 +248,19 @@ instance : has_pow free_group ℤ := ⟨λ a n, int.cases_on n
 -- instance : decidable_rel ((<) : free_group → free_group → Prop) :=
 -- λ _ _, show decidable ((_ : bool) : Prop), by apply_instance
 
+inductive certificate {G : Type*} [group G] (atoms : list G) : Type
+| one : certificate
+| step (conj : free_group) (rel : free_group) (hrel : eval atoms rel = 1)
+  (old : certificate) : certificate
+
+open certificate
+
+local infix `*'`:70 := ap
+
+def certificate.eval {G : Type*} [group G] (atoms : list G) : certificate atoms → free_group
+| one := 1
+| (step conj rel h old) := conj *' rel *' certificate.eval old *' inv_core conj 1
+
 section eqv
 
 inductive eqv : free_group → free_group → Prop
@@ -264,6 +278,8 @@ attribute [symm] eqv.symm
 attribute [trans] eqv.trans
 
 attribute [congr] eqv.cons eqv.ap
+
+open certificate
 
 variables {G : Type*} [group G]
 
@@ -304,12 +320,24 @@ lemma eval_eq_of_eqv (atoms : list G) {a b : free_group} (hab : eqv a b) :
   eval atoms a = eval atoms b :=
 by induction hab; simp [eval, eval_append, *, ap, eval_cons, eval_inv, inv_core_eq] at *
 
+local infixl `≡` :50 := free_group.eqv
+
+lemma cert_eval_step_eqv (atoms : list G) (conj rel h)
+  (c : certificate atoms) : (certificate.step conj rel h c).eval atoms ≡
+  conj *' rel *' c.eval atoms *' inv_core conj 1 :=
+eqv.refl _
+
+lemma cert_eval_one_eqv (atoms : list G) : certificate.one.eval atoms ≡ 1 :=
+eqv.refl _
+
 meta def mk_free_group_simp_lemmas : tactic simp_lemmas :=
 do sl : simp_lemmas ←
   ([``eqv.mul_inv_cancel, ``eqv.inv_mul_cancel,
     ``ap_one_eqv, ``one_ap_eqv, ``ap_cons_eqv,
     ``inv_core_cons_ff_eqv, ``inv_core_cons_tt_eqv,
-    ``inv_core_one_eqv] : list name).mfoldl
+    ``inv_core_one_eqv,
+    ``cert_eval_step_eqv,
+    ``cert_eval_one_eqv] : list name).mfoldl
   (λ (sl : simp_lemmas) n, sl.add_simp n)
   simp_lemmas.mk,
 [``eqv.cons, ``eqv.inv_core, ``eqv.ap].mfoldl
@@ -323,7 +351,17 @@ open tactic expr
 meta def free_group_simp (lhs : expr) (sl : simp_lemmas) : tactic expr :=
 do
 (lhs', prl) ← (simplify sl [] lhs (default _) ``eqv <|> return (lhs, `(eqv.refl %%lhs))),
+trace lhs',
 return prl
+#print free_group_simp
+def Gd : Type := sorry
+instance : group Gd := sorry
+
+run_cmd do sl ← mk_free_group_simp_lemmas,
+  free_group_simp
+    `(certificate.eval ([] : list Gd)
+        (certificate.step [⟨1, ff⟩] 1 sorry certificate.one)) sl
+
 
 end eqv
 
