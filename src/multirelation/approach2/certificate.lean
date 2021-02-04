@@ -11,7 +11,7 @@ begin
   { simp [certificate.eval, eval_ap, ih, hrel, eval_inv_core, eval_one] }
 end
 
-lemma eq_one_of_cert_eval_eq_one {G : Type*} [group G] (atoms : list G) (w : free_group)
+lemma eq_one_of_cert_evap_eq_one {G : Type*} [group G] (atoms : list G) (w : free_group)
   (c : certificate atoms)
   (hrel : eqv (c.eval atoms) w): free_group.eval atoms w = 1 :=
 by rw [← eval_eq_of_eqv atoms hrel, eval_eval_eq_one]
@@ -26,6 +26,23 @@ def conj (c : free_group) : list proof_step → list proof_step
 | [] := []
 | (⟨c', r, i, b⟩::l) := ⟨c * c', r, i, b⟩::l
 
+@[simp] lemma length_conj (c : free_group) : ∀ l : list proof_step,
+  (conj c l).length = l.length
+| [] := rfl
+| (⟨c', r, i, b⟩::l) := rfl
+
+def evap : list proof_step → free_group
+| [] := 1
+| (⟨c, r, _, _⟩::l) := c * r * evap l * c⁻¹
+
+-- instance : group free_group :=
+-- by refine_struct { mul := (*), one := (1 : free_group), inv := has_inv.inv }; admit
+
+-- @[simp] lemma evap_conj  (c : free_group) : ∀ l : list proof_step,
+--   evap (conj c l) = c * evap l * c⁻¹
+-- | [] := by simp [_root_.evap, conj]
+-- | (⟨c', r, i, b⟩::l) := by simp [_root_.evap, conj, mul_assoc]
+
 meta def golf₁ :
   list proof_step →
   list proof_step
@@ -34,13 +51,36 @@ meta def golf₁ :
 | (⟨c₁, r₁, i₁, b₁⟩ :: ⟨c₂, r₂, i₂, b₂⟩ :: l) :=
   if c₂ = 1 ∧ r₁ = r₂⁻¹
     then golf₁ (conj c₁ l)
-    else let c' := c₁ * r₁ * c₂ in if c' < c₁
-      then ⟨c', r₂, i₂, b₂⟩ :: golf₁ (⟨c₂⁻¹ * r₁⁻¹, r₁, i₁, b₁⟩::conj c₂ l)
+    else let c' := c₁ * r₁ * c₂ in
+      if list.lex (<) c' c₁
+      then golf₁ (⟨c', r₂, i₂, b₂⟩::⟨c₂⁻¹ * r₁⁻¹, r₁, i₁, b₁⟩::conj c₂ l)
       else let c₁' := c₁ * c₂ in
            let c₂' := r₂⁻¹ * c₂⁻¹ in
-        if c₁' < c₁
-          then ⟨c₁', r₂, i₂, b₂⟩ :: golf₁ (⟨c₂', r₁, i₁, b₁⟩::conj (c₂* r₂) l)
-          else ⟨c₁, r₁, i₁, b₁⟩ :: golf₁ (⟨c₂, r₂, i₂ , b₂⟩::l)
+        if list.lex (<) c₁' c₁
+          then golf₁(⟨c₁', r₂, i₂, b₂⟩ :: ⟨c₂', r₁, i₁, b₁⟩::conj (c₂* r₂) l)
+          else ⟨c₁, r₁, i₁, b₁⟩ :: golf₁ (⟨c₂, r₂, i₂, b₂⟩::l)
+
+meta def golf' : 
+  list proof_step → --
+  list proof_step → 
+  list proof_step 
+
+-- lemma evap_golf₁ : ∀ (l : list proof_step),
+--   evap (golf₁ l) = evap l
+-- | []  := rfl
+-- | [⟨_, _, _, _⟩] := rfl
+-- | (⟨c₁, r₁, i₁, b₁⟩ :: ⟨c₂, r₂, i₂, b₂⟩ :: l) :=
+-- begin
+--   rw [_root_.evap, golf₁],
+--   dsimp,
+--   split_ifs,
+--   { rw [evap_golf₁, _root_.evap, evap_conj, h.1, h.2],
+--     simp [mul_assoc] },
+--   { simp [_root_.evap, evap_golf₁, mul_assoc] },
+--   { simp [_root_.evap, evap_golf₁, mul_assoc] },
+--   { simp [_root_.evap, evap_golf₁, mul_assoc] }
+-- end
+-- using_well_founded { rel_tac := λ _ _, `[exact ⟨_, measure_wf list.length⟩] }
 
 meta def golf₂ :
   list proof_step →
@@ -48,9 +88,26 @@ meta def golf₂ :
 | []  := []
 | (⟨c₁, r₁, i₁, b₁⟩ :: l) :=
   let cr₁ := c₁ * r₁ in
-  if cr₁ < c₁
+  if list.lex (<) cr₁ c₁
   then golf₂ (⟨cr₁, r₁, i₁, b₁⟩ :: conj (r₁⁻¹) l)
-  else ⟨c₁, r₁, i₁, b₁⟩  :: golf₂ l
+  else ⟨c₁, r₁, i₁, b₁⟩ :: golf₂ l
+-- using_well_founded { rel_tac := λ _ _, `[exact ⟨_, measure_wf list.length⟩],
+--   dec_tac := `[admit] }
+
+-- lemma evap_golf₂ : ∀ l : list proof_step, evap (golf₂ l) = evap l
+-- | [] := rfl
+-- | (⟨c₁, r₁, i₁, b₁⟩ :: l) :=
+--   begin
+--     rw [golf₂],
+--     dsimp,
+--     split_ifs,
+--     { rw [_root_.evap, evap_golf₂],
+--       simp [_root_.evap, mul_assoc] },
+--     { rw [_root_.evap, evap_golf₂],
+--       simp [_root_.evap, mul_assoc] }
+--   end
+-- using_well_founded { rel_tac := λ _ _, `[exact ⟨_, measure_wf list.length⟩],
+--   dec_tac := `[admit] }
 
 meta def golf₃ :
   list proof_step →
@@ -58,9 +115,26 @@ meta def golf₃ :
 | []  := []
 | (⟨c₁, r₁, i₁, b₁⟩ :: l) :=
   let cr₁ := c₁ * r₁⁻¹ in
-  if cr₁ < c₁
-  then golf₂ (⟨cr₁, r₁, i₁, b₁⟩ :: conj r₁ l)
-  else ⟨c₁, r₁, i₁, b₁⟩  :: golf₃ l
+  if list.lex (<) cr₁ c₁
+  then golf₃ (⟨cr₁, r₁, i₁, b₁⟩ :: conj r₁ l)
+  else ⟨c₁, r₁, i₁, b₁⟩ :: golf₃ l
+-- using_well_founded { rel_tac := λ _ _, `[exact ⟨_, measure_wf list.length⟩],
+--   dec_tac := `[admit] }
+
+-- lemma evap_golf₃ : ∀ l : list proof_step, evap (golf₃ l) = evap l
+-- | [] := rfl
+-- | (⟨c₁, r₁, i₁, b₁⟩ :: l) :=
+--   begin
+--     rw [golf₃],
+--     dsimp,
+--     split_ifs,
+--     { rw [_root_.evap, evap_golf₃],
+--       simp [_root_.evap, mul_assoc] },
+--     { rw [_root_.evap, evap_golf₃],
+--       simp [_root_.evap, mul_assoc] }
+--   end
+-- using_well_founded { rel_tac := λ _ _, `[exact ⟨_, measure_wf list.length⟩],
+--   dec_tac := `[admit] }
 
 meta def golf : Π (l : list proof_step), list proof_step :=
 λ l, let l' := golf₁ (golf₂ (golf₃ l)) in

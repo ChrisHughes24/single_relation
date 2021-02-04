@@ -154,10 +154,6 @@
 
 \maketitle
 
-\textcolor{red}{This is an unfinished version of my fourth year project at Imperial.
-Although it is unfinished it hopefully gives some impression of what I have been doing.}
-
-
 \section{Introduction}
 This paper describes an implementation of Magnus' method for solving the
 word problem in one-relator groups \cite{mccool_schupp_1973}\cite{PutmanOneRelator}.
@@ -171,6 +167,119 @@ tactic can prove that two words in a one relator group are equal, but not that t
 This paper starts by defining and stating a few important results about both
 HNN extensions and free groups. Next, the proof certificate is described, and then
 the algorithm is described along with how to generate the proof certificates.
+
+\section{Introduction to Lean}
+
+Lean \cite{de_moura_kong_avigad_van_doorn_von_raumer_2018} is a proof assistant; it is a language capable of expressing mathematical propositions
+and definitions, and also a language for writing formal proofs of these propositions which
+can then be checked by Lean's kernel. A formal proof checked by Lean's kernel provides
+an extremely high level of confidence in a checked proof, at the expense of requiring a lot
+of time for a user to write a proof in a completely formal language.
+
+As well as being a proof assistant, Lean is also a programming language. The definitions
+that are written in Lean are also executable programs, and Lean can be used to prove correctness
+of programs written in Lean as well as pure mathematical proofs. Lean can
+be used as a programming language to write Lean tactics, described in the next section.
+
+There is a large library of formal mathematics in Lean, called mathlib
+\cite{The_mathlib_Community_2020}. As of January 2021 this contains 470000 lines of code.
+
+\subsection{Terms and Types}
+
+Lean is based on type theory, every term has a type,
+including types themselves.
+Lean makes use of the Curry-Howard correspondence, every proposition is a type,
+and the inhabitants of the proposition can be thought of as proofs of the proposition.
+
+\subsubsection{Curry Howard Correspondence}
+
+
+
+
+\subsection{Tactics}
+
+Because of the difficulty of writing a formal proof in Lean directly, it is possible
+to write tactics in Lean. The tactic framework is a domain specific language for writing
+Lean expressions, which include Lean proofs.
+
+When using tactics to write a Lean proof, a tactic state is displayed to a user.
+This tactic state can be manipulated using tactics. An example of a tactic state is displayed
+below.
+
+\begin{exmpl}
+
+The code below is a statement of the theorem that if $G$ is a group, and
+$a, b ∈ G$ are such that $ab = b^2a$, then for any natural number $n$,
+$a^nba^{-n} = b^{2^n}$. Between the \lstinline{begin ... end}, the user can
+write tactics to produce a proof of the proposition.
+
+\begin{lstlisting}
+  example {G : Type*} [group G] (a b : G) (h : a * b = b ^ 2 * a) (n : ℕ) :
+    a ^ n * b * a ^ -↑n = b ^ 2 ^ n :=
+  begin
+
+  end
+\end{lstlisting}
+If the user types the above code then the following tactic state is displayed to the user.
+
+\begin{lstlisting}
+  1 goal
+  G : Type u_1,
+  _inst_1 : group G,
+  a b : G,
+  h : a * b = b ^ 2 * a,
+  n : ℕ
+  ⊢ a ^ n * b * a ^ -↑n = b ^ 2 ^ n
+\end{lstlisting}
+
+The turnstile \lstinline{⊢} indicates the current goal, the proposition the user
+is currently trying to prove. The preceding lines indicate the hypotheses and variables.
+\lstinline{G : Type u_1} indicates that \lstinline{G} is a type in an arbitrary universe
+\lstinline{u_1}. \lstinline{_inst_1} is a group structure on the Type \lstinline{G}.
+A term of type \lstinline{group G}, is a tuple containing a binary operation on
+\lstinline{G}, an identity, and an inverse function, as well as proofs that these
+satisfy the group axioms. \lstinline{a} and \lstinline{b} are elements of
+\lstinline{G}, \lstinline{h} is the hypothesis that \lstinline{a * b = b ^ 2 * a},
+and \lstinline{n} is a natural number.
+
+If the user writes a tactic, then the tactic state will change. If the user
+wanted to prove this by induction on \lstinline{n} they could write
+
+\begin{lstlisting}
+  induction n with k ih
+\end{lstlisting}
+
+The tactic state after this line will now be
+
+\begin{lstlisting}
+  2 goals
+  case nat.zero
+  G : Type u_1,
+  _inst_1 : group G,
+  a b : G,
+  h : a * b = b ^ 2 * a
+  ⊢ a ^ 0 * b * a ^ -↑0 = b ^ 2 ^ 0
+
+  case nat.succ
+  G : Type u_1,
+  _inst_1 : group G,
+  a b : G,
+  h : a * b = b ^ 2 * a,
+  k : ℕ,
+  ih : a ^ k * b * a ^ -↑k = b ^ 2 ^ k
+  ⊢ a ^ k.succ * b * a ^ -↑(k.succ) = b ^ 2 ^ k.succ
+\end{lstlisting}
+
+The tactic split the goal into two cases, in the first case, labelled \lstinline{case nat.zero},
+\lstinline{n} is zero, and in the second case, labelled \lstinline{case nat.succ}
+\lstinline{n} is the successor of \lstinline{k}. In the second case, an induction
+hypothesis \lstinline{ih} has been added.
+
+% After typing a second tactic,
+\end{exmpl}
+
+There are many other tactics that allow different manipulations of a tactic
+state.
 
 \section{Free Group}
 
@@ -389,7 +498,7 @@ to make the correct proof certificate after conjugating $r$.
 
 
 
-\subsection{Case 1: All letters in $r$ are in $T$}\label{allinT}
+\subsection{Case 1: All letters in r are in T}\label{allinT}
 For this case it is helpful to consider the group $F(S)$ as the
 coproduct of the subgroup generated by the letters in $T$ and
 the subgroup generated by the rest of the letters:
@@ -402,7 +511,7 @@ The problem can be reduced to deciding whether an element of $w_i \in F(T)$ is e
 To decide the word problem whenever $\overline{w_i} = 1$, perform this substitution and
 then check whether the resulting word in $F(T) \ast F(S \backslash T)$ is in $T$.
 
-\subsection{Case 2: There is a letter in $r$ that is not in $T$}
+\subsection{Case 2: There is a letter in r that is not in T}
 \subsubsection{Base Case}
 The base case is the case where the relation $r$ is of the form $a^n$ with
 $n \in \mathbb{Z}$, and $a$ a letter in $S$. It is straightforward to decide
@@ -466,14 +575,14 @@ generated by $A$ or $B$ using
 Magnus' method again for the shorter relation $r'$, and rewrite these words using the letters
 in $A$ or $B$ when possible.
 
-Once in the form $g t^n$ with $g \in F(S')$, it is enough to check that \newline
+Once in the form $g t^n$ with $g \in F(S')$, it is enough to check that
 $\overline{\text{RemoveSubscripts}(g)}$ can be written as a word in $T$.
 If $t \in T$ then this amounts to solving the word problem for $r'$
 and the set $T' := \{ s_i \in S' | s \in T, i \in \mathbb{Z} \}$. If $t \notin T$,
 this amounts to checking that $n = 0$ and solving the word problem for
-$r'$ and the set $T' := \{s_0 \in S' | s \in T\}$.\\
+$r'$ and the set $T' := \{s_0 \in S' | s \in T\}$.
 
-\textbf{Case 2.b: No letter with exponent sum zero}\\
+\textbf{Case 2.b: No letter with exponent sum zero}
 
 If there is no letter $t$ in $r$ with exponent sum zero, then choose $x$
 and $t$ such that $x \ne t$ and such that if $t \notin T$ then $x \notin T$.
@@ -765,8 +874,8 @@ following two sets
 
 \begin{equation*}
   \begin{aligned}
-    R^{+} := \{ i | \forall j, \sum_0^i n_i \le \sum_0^j n_j\} \\
-    R^{-} := \{ i | \forall j, \sum_0^i n_i \ge \sum_0^j n_j\}
+    R^{+} := \left\{ i | \forall j, \sum_0^i n_i \le \sum_0^j n_j\right\} \\
+    R^{-} := \left\{ i | \forall j, \sum_0^i n_i \ge \sum_0^j n_j\right\}
   \end{aligned}
 \end{equation*}
 

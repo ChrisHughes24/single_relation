@@ -574,7 +574,7 @@ do
   solution ← solve (hyps.map prod.fst) tgt a.size,
   let path := (trace_path solution.2).reverse,
   tactic.trace ("path length = " ++ repr path.length),
-  let golf_path :=  (to_list_proof_step
+  let golf_path := golf (to_list_proof_step
       (list.to_buffer (hyps.map (λx, x.1)))
       (list.to_buffer (hyps.map (λx, x.2.1)))
       path),
@@ -589,7 +589,7 @@ do
   atoms ← list_atoms,
   cert_eval ← mk_app ``certificate.eval [atoms, cert],
   cert_eqv ← prove_free_group_eqv cert_eval,
-  pr ← mk_app ``eq_one_of_cert_eval_eq_one [atoms, to_expr tgt, cert, cert_eqv],
+  pr ← mk_app ``eq_one_of_cert_evap_eq_one [atoms, to_expr tgt, cert, cert_eqv],
   tactic.exact pr
 
 end group_rel_m

@@ -242,12 +242,6 @@ instance : has_pow free_group ℤ := ⟨λ a n, int.cases_on n
   ((^) a)
   (λ n, a⁻¹ ^ (n + 1))⟩
 
--- @[instance, priority 100000] def free_group.has_lt :
---   has_lt (free_group) := ⟨λ a b, lt a b⟩
-
--- instance : decidable_rel ((<) : free_group → free_group → Prop) :=
--- λ _ _, show decidable ((_ : bool) : Prop), by apply_instance
-
 inductive certificate {G : Type*} [group G] (atoms : list G) : Type
 | one : certificate
 | step (conj : free_group) (rel : free_group) (hrel : eval atoms rel = 1)
@@ -259,7 +253,7 @@ local infix `*'`:70 := ap
 
 def certificate.eval {G : Type*} [group G] (atoms : list G) : certificate atoms → free_group
 | one := 1
-| (step conj rel h old) := conj *' rel *' certificate.eval old *' inv_core conj 1
+| (step conj rel h old) := conj *' (rel *' (certificate.eval old *' inv_core conj 1))
 
 section eqv
 
@@ -324,7 +318,7 @@ local infixl `≡` :50 := free_group.eqv
 
 lemma cert_eval_step_eqv (atoms : list G) (conj rel h)
   (c : certificate atoms) : (certificate.step conj rel h c).eval atoms ≡
-  conj *' rel *' c.eval atoms *' inv_core conj 1 :=
+  conj *' (rel *' (c.eval atoms *' inv_core conj 1)) :=
 eqv.refl _
 
 lemma cert_eval_one_eqv (atoms : list G) : certificate.one.eval atoms ≡ 1 :=
@@ -351,17 +345,7 @@ open tactic expr
 meta def free_group_simp (lhs : expr) (sl : simp_lemmas) : tactic expr :=
 do
 (lhs', prl) ← (simplify sl [] lhs (default _) ``eqv <|> return (lhs, `(eqv.refl %%lhs))),
-trace lhs',
 return prl
-#print free_group_simp
-def Gd : Type := sorry
-instance : group Gd := sorry
-
-run_cmd do sl ← mk_free_group_simp_lemmas,
-  free_group_simp
-    `(certificate.eval ([] : list Gd)
-        (certificate.step [⟨1, ff⟩] 1 sorry certificate.one)) sl
-
 
 end eqv
 

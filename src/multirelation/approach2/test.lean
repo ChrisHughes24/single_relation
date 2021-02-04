@@ -19,14 +19,13 @@ by group_rel [h]
 lemma test1
   (h₁ : a * b^2 = b * a)
   (h₂ : b * a^2 = a * b) :
-  b = 1 :=
+  a = 1 :=
 begin
   group_rel [h₁, h₂],
 
 
 end
 
-set_option pp.implicit true
 lemma test2 (h : a * b * a⁻¹ = 1) : b = 1 :=
 begin
   group_rel [h],
@@ -39,7 +38,7 @@ begin
   group_rel [h],
 
 end
-
+#exit
 lemma test3b
   (h : a * b = b ^ 2 * a)
   (h₁ : d * a * b * a = d * c * a) :
