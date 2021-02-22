@@ -127,6 +127,7 @@
 \usepackage{amsmath}
 \usepackage{amsthm}
 \usepackage{upgreek}
+\usepackage{tikz-cd}
 \theoremstyle{definition}
 \newtheorem{theorem}{Theorem}[section]
 \theoremstyle{definition}
@@ -143,7 +144,6 @@
 
 \usepackage{hyperref}
 
-
 %%% END Article customizations
 
 %%% The "real" document content comes below...
@@ -153,20 +153,33 @@
 \begin{document}
 
 \maketitle
+\pagebreak
+\tableofcontents
+\pagebreak
 
 \section{Introduction}
-This paper describes an implementation of Magnus' method for solving the
-word problem in one-relator groups \cite{mccool_schupp_1973}\cite{PutmanOneRelator}.
-This implementation is used as part of a Lean tactic to prove equalities in groups given a single equality as a hypothesis; for example, it might prove that $abab^2 = 1$ implies $ab = ba$.
+% This paper describes an implementation of Magnus' method for solving the
+% word problem in one-relator groups \cite{mccool_schupp_1973}\cite{PutmanOneRelator}.
+% This implementation is used as part of a Lean tactic to prove equalities in groups
+% given a single equality as a hypothesis; for example, it might prove that $abab^2 = 1$ implies $ab = ba$.
+
+This paper describes two methods for automating proofs of equalities in groups, given
+a number of equalities as hypotheses. The first section describes Magnus' method
+\cite{mccool_schupp_1973}, which decides the word problem in one-relator groups.
+
+The second method is capable of using more than one equality as a hypothesis,
+with the caveat that it may not terminate if the equality it is asked to prove is false.
+It is a known result that the word problem for finitely presented groups is undecidable
+\cite{collins1986}, however it is semidecidable meaning that  there is an algorithm
+that will terminate with a proof whenever an equality is true, but will not necessarily
+terminate when an equality does not follow from the hypotheses.
 
 In order to be used as part of a Lean tactic, the implementation of the
 algorithm must not only decide the problem, but also produce a proof certificate
 that can be converted into a Lean proof to be checked by Lean's kernel. The Lean
 tactic can prove that two words in a one relator group are equal, but not that they are unequal.
 
-This paper starts by defining and stating a few important results about both
-HNN extensions and free groups. Next, the proof certificate is described, and then
-the algorithm is described along with how to generate the proof certificates.
+
 
 \section{Introduction to Lean}
 
@@ -182,25 +195,61 @@ of programs written in Lean as well as pure mathematical proofs. Lean can
 be used as a programming language to write Lean tactics, described in the next section.
 
 There is a large library of formal mathematics in Lean, called mathlib
-\cite{The_mathlib_Community_2020}. As of January 2021 this contains 470000 lines of code.
+\cite{ThemathlibCommunity2020}. As of January 2021 this contains 470000 lines of code.
 
 \subsection{Terms and Types}
 
-Lean is based on type theory, every term has a type,
+Lean is based on type theory, every expression has a type,
 including types themselves.
-Lean makes use of the Curry-Howard correspondence, every proposition is a type,
+The notation \lstinline{x : y} indicates that
+\lstinline{x} has type \lstinline{y}.
+
+Lean makes use of the Curry Howard correspondence, every proposition is a type,
 and the inhabitants of the proposition can be thought of as proofs of the proposition.
+The main difference between propositions and other types, is that every element
+of a proposition is equal to itself.
 
-\subsubsection{Curry Howard Correspondence}
+If $P$ and $Q$ are propositions and it is known that $P$ implies $Q$, and
+$P$ is true, then $Q$ is also true. T
 
+By the Curry Howard correspondence, theorems can be regarded as functions, and the
+implication arrow \lstinline{→} is the same as the arrow defining function types.
 
+For example if \lstinline{X} and \lstinline{Y} are types, then
+\lstinline{f : X → Y} could be read as \lstinline{f} is a function from
+\lstinline{X} to \lstinline{Y}. But if \lstinline{X} and \lstinline{Y} are propositions,
+then \lstinline{f} is a proof that \lstinline{X} implies \lstinline{Y}.
 
+Suppose \lstinline{X} and \lstinline{Y} are propositions, and we have \lstinline{x : X},
+and \lstinline{f : X → Y}, i.e. \lstinline{X} is true,
+and \lstinline{X → Y} is also true. Then by the modus ponens rule, we know \lstinline{Y}
+is also true. The proof of this, the term of type \lstinline{Y}, is simply \lstinline{f x}
+(Function application can be written without brackets in Lean).
+The same syntax would be used if \lstinline{X} and \lstinline{Y} were Types,
+then if \lstinline{x : X} and \lstinline{f : X → Y} then applying \lstinline{f}
+to \lstinline{x}, gives \lstinline{f x : Y}.
+
+Similarly the forall quantifier corresponds to Pi-types, or the type of dependent functions,
+where the output type depends on the input to the function.
+For example if \lstinline{s : set ℕ} is a set of natural numbers,
+and \lstinline{h : ∀ x : ℕ, x ∈ s}, is a proof that every natural number is contained
+in this set, then this function applied at \lstinline{2} gives \lstinline{h 2 : 2 ∈ s},
+the proof in the special case when \lstinline{x} is \lstinline{2}. In fact the
+symbols \lstinline{∀} and \lstinline{Π} are interchangeable in Lean, it is only a
+convention that \lstinline{∀} should be used for propositions and \lstinline{Π} for types.
+
+We have seen that the function arrow corresponds to the implication arrow. There
+are other correspondences between logical connectives, and operators for making types.
+For example logical "and", \lstinline{∧} corresponds to the product of types,
+logical "or" \lstinline{∨} correspond to the disjoint union or coproduct of types.
 
 \subsection{Tactics}
 
 Because of the difficulty of writing a formal proof in Lean directly, it is possible
 to write tactics in Lean. The tactic framework is a domain specific language for writing
-Lean expressions, which include Lean proofs.
+Lean expressions, which include Lean proofs. Tactics will return a Lean expression,
+which will then be checked by the Lean kernel. The tactic itself is not proven correct,
+it is possible that a tactic returns a proof that is not accepted by the Lean kernel.
 
 When using tactics to write a Lean proof, a tactic state is displayed to a user.
 This tactic state can be manipulated using tactics. An example of a tactic state is displayed
@@ -275,13 +324,34 @@ The tactic split the goal into two cases, in the first case, labelled \lstinline
 \lstinline{n} is the successor of \lstinline{k}. In the second case, an induction
 hypothesis \lstinline{ih} has been added.
 
-% After typing a second tactic,
+The user could then use the \lstinline{rw} tactic to solve the first goal,
+for example typing \lstinline{rw pow_zero} changes the goal to
+\begin{lstlisting}
+  ⊢ 1 * b * a ^ -↑0 = b ^ 2 ^ 0
+\end{lstlisting}
+
+The \lstinline{a^0} has been substituted
+for \lstinline{1}; \lstinline{pow_zero} is the theorem that says if $a$ is an
+element of any monoid, then $a^0= 1$.
+
+To solve the first goal the \lstinline{simp} tactic can be used.
+The \lstinline{simp} tactic applies as many simplification rules as possible.
+These rules are lemmas in the library marked by the library authors as simplification
+lemmas that are proofs of an equality where the right hand side is judged to be simpler
+than the left hand side. For example there is a lemma simplifying \lstinline{1 * a} to
+\lstinline{a}, or \lstinline{b ^ 1} to \lstinline{b}.
+
+To solve the second goal, the \lstinline{group_rel} tactic described later in this document can be used.
+
 \end{exmpl}
 
-There are many other tactics that allow different manipulations of a tactic
-state.
+\section{Magnus' Method}
 
-\section{Free Group}
+This section starts by defining and stating a few important results about both
+HNN extensions and free groups. Next, the proof certificate is described, and then
+the algorithm is described along with how to generate the proof certificates.
+
+\subsection{Free Group}
 
 The free group is implemented in Lean as the set of reduced words. An element of
 the free group over a type $S$ of letters is a list of pairs $S \times \mathbb{Z}$,
@@ -315,7 +385,7 @@ part of the correctness of Magnus' method. The proof is omitted.
   \cite{mccool_schupp_1973}
 \end{theorem}
 
-\section{HNN Extensions}\label{HNN}
+\subsection{HNN Extensions}\label{HNN}
 
 Magnus' method makes use of isomorphisms between one-relator groups and HNN extensions.
 In this section we define an HNN extension of a group relative to an
@@ -371,7 +441,7 @@ In order to compute this algorithm, it is also necessary to have an algorithm fo
 of elements in $G$,
 for checking whether an element of $G$ is in either of the subgroups $A$ or $B$, and for computing $\phi$.
 
-\section{The Proof Certificate}
+\subsection{The Proof Certificate}\label{proofcert}
 
 An element of a group $G$ is equal to $1$ in the quotient by the normal closure
 of a relator $r$ if and only if it can be written as a product of conjugates of $r$ and $r^{-1}$.
@@ -381,7 +451,7 @@ $g \in G,$ to $grg^{-1} \in G$. The image of this map is exactly the kernel of t
 Therefore an element $p$ of $F(G)$ such that $\text{Eval}(p) = w$
 can be seen as a witness that $w$ is in the kernel of the quotient map.
 
-\begin{defn}(Eval)
+\begin{defn}(Eval)\label{Eval}
   $\text{Eval}(r)$ is a map $F(G) \to G$, sending a basis element $g \in G$ to $grg^{-1}$.
 \end{defn}
 
@@ -407,6 +477,13 @@ for any $p\in P(G)$, $\text{lhs}(p)$ and $\text{rhs}(p)$ are equal in the quotie
 Therefore an element $p$ of $P(G)$ can be regarded as a certificate of the congruence
 $\text{lhs}(p) \equiv \text{rhs}(p) \text{ mod } r$.
 \end{subdef}
+
+One way of expressing this is that the group $G / r$ is the coequalizer of
+the two surjective maps lhs and rhs
+
+\begin{tikzcd}
+  P(G) \arrow[rr, "lhs"', shift right] \arrow[rr, "rhs", shift left] &  & G \arrow[r] & G/r
+\end{tikzcd}
 
 Because both $\text{lhs}$ and $\text{rhs}$ are group homomorphisms, if $p \in P(G)$ is a certificate
 of the congruence $a \equiv b \text{ mod } r$ and $q$ is a certificate of the congruence
@@ -444,7 +521,175 @@ and vice versa, but this is not used in the algorithm.
   $g \in G$ and $(p_1, p_2) \in P(G)$.
 \end{subdef}
 
-\section{Adding and Removing Subscripts}
+\subsubsection{Performance}
+
+
+The representation of $F(F(S))$ can be improved. The automorphism $MulFree$ multiplies
+every letter in a word by another word. The consequence is that many of the words in
+$F(S)$ making up an element of $F(F(S))$ are very similar. Take the word $[w][v] \in F(F(S))$,
+where $w, v, u \in F(S)$, and consider the element $\text{MulFree}(u)[w][v] = [uw][uv]$.
+It is more efficient to only store the difference between adjacent letters, so the
+element $[w][v]$ would be represented as the sequence $w, w^{-1}v$, and
+the element $[uw][uv]$ would be represented as the sequence $uw, v^{-1}$.
+If $u$ is a long word, which it often is, then this representation will usually be shorter.
+The longer the word $x$ such that the algorithm is attempting
+to prove $\overline{w} = 1$, the longer a typical length of $u$ is, so in fact
+the standard representation tends to give certificates more of length or less quadratic in
+the length of $x$.
+This also has the advantage that to compute $MulFree$ only the first term in the sequence needs
+to be changed.
+
+An improved representation of the group $F(F(S))$ for a set $F(S)$, is to again
+represent an element as a finite sequence of elements of $F(S) \times \mathbb{N}_{\ge 1}
+\times\{-1,1\}$.
+
+Define the set $X$ to be the set of finite sequences of elements of
+$F(S) \times \mathbb{N}_{\ge 1}
+\times\{-1,1\}$, with the property that there are no adjacent pairs of the form
+$(g_i, n_i, s_i)(1, n_{i+1}, -s_i)$. A pair of this form will evaluate
+to $(g_i r^{s_i})^{n_i}r^{-s_in_{i+1}} \dots g_i^{-n_i}$,
+so there is a natural cancellation that can be made, whilst preserving the same
+evaluation. This reduction corresponds to cancellation of inverses in
+the usual representation of the free group. Later,
+we will define a Reduce function on sequences.
+
+Given a pair $(g, n, b) \in F(S) \times \mathbb{N}_{\ge 1} \times\{-1,1\}$,
+define an element $f(g, n, b) \in P(F(S))$.
+
+\begin{equation}
+  \begin{cases}
+    f(g, n, 1) := ([g], g) ^ n \\
+    f(g, n, -1) := ((1, g^{-1})([g]^{-1}, 1))^{-n}
+  \end{cases}
+\end{equation}
+
+Therefore given a sequence $(g_1, n_1, s_1), (g_2, n_2,s_2) \dots (g_k, n_k,s_k)$,
+we can define the corresponding element of $F(F(S))$ to be
+
+\begin{equation}
+    \left(\prod_{i=1}^k f(g_i, n_i, s_i)\right)\left(\prod_{i=1}^k (1, g_i)^{-n_i}\right)
+\end{equation}
+
+The evaluation map into $F(S)$ can then be define as
+
+\begin{equation}
+  \text{Eval}((g_1, n_1, s_1), (g_2, n_2,s_2) \dots (g_k, n_k,s_k)) :=
+  \left(\prod_{i=1}^k (g_ir^s_i)^{n_i}\right)\left(\prod_{i=1}^k g_i^{n_i}\right)
+\end{equation}
+
+One way of viewing this representation is that it stores a way of representing
+as a sequence of applications of $h(g_i,s_i)$, to a word $w$, where each $n_i$
+represents how many times the map $h(g_i, s_i)$ should be applied.
+
+\begin{equation}
+  h(g_i, s_i)(w) = g_ir^{s_i}wg_i^{-1}
+\end{equation}
+
+The map MulFree can be defined on this representation much more efficiently,
+since only the first
+element in the list need be changed.
+
+\begin{equation}
+  \begin{cases}
+    \text{MulFree}(w)(1) := 1 \\
+    \text{MulFree}(w)((g_1, 1, s_1), \dots ,(g_k, n_k, s_k)) := (wg_1, 1, s_1), \dots, (g_k, n_k, s_k)\\
+    \text{MulFree}((g_1, 1, s_1),\dots ,(g_k, n_k, s_k)) :=
+    (wg_1, 1, s_1),(g_1, n_1 - 1, s_1),\dots,(g_k, n_k, s_k) & \text{if }n_1 > 1
+  \end{cases}
+\end{equation}
+
+Multiplication can also now be defined on this representation.
+
+We can now define a reduction map to eliminate pairs of the form
+ $(g_i, n_i, s_i)(1, n_{i+1}, -s_i)$.
+\begin{defn}[Reduce]
+  Reduce eliminates pairs of this form in a sequence with some rewriting rules.
+  In this definition $S$ is some finite sequence.
+  \begin{equation}
+    \begin{cases}
+    (g_i, 1, s_i), (1, 1, -s_i), S \to \text{MulFree}(g_i)(S) \\
+    (g_i, n_i, s_i), (1, 1, -s_i), S \to (g_i, n_i - 1, s_i),
+      \text{MulFree}(g_i)(S) & \text{if } n_i > 1\\
+    (g_i, 1, s_i), (1, n_{i+1}, -s_i) \to
+      (g_i, 1, -s_i), (1, n_{i+1} - 1, -s_i) &\text{if } n_{i+1} > 1 \\
+    (g_i, n_i, s_i), (1, n_{i+1}, -s_i) \to
+    (g_i, n_i - 1, s_i), (g_i, 1, -s_i), (1, n_{i + 1}, -s_i) &
+      \text{if } n_i > 1\text{ and } n_{i+1} > 1
+    \end{cases}
+  \end{equation}
+  % \begin{cases}
+  %   %     (g_ig_{i+2}, 1, s_{i+2}), (g_{i+2}, n_{i+2} - 1, s_{i+2}) & n_i = n_{i+1} = 1 \\
+  %   %     (g_i, n_i - 1, s_i), (g_i g_{i+2}, 1, s_{i+2}), (g_{i+2}, n_{i+2}, s_{i+2}) &
+  %   %       n_i > 1 \text{ and } n_{i+1} = 1 \\
+  %   %     (g_i, 1, -s_i), (1, n_{i+1}-1, -s_i), (g_i g_{i+2}, n_{i+2}, s_{i+2}) &
+  %   %       n_i = 1 \text{ and } n_{i+1} > 1
+
+  %   %   \end{cases}
+  %   % \end{equation}
+\end{defn}
+% \begin{defn}[Reduce]
+%   Reduce elimates pairs of this form
+
+%   \begin{equation}
+%     \begin{cases}
+%       \text{Reduce}(S) = s & \text{The length of }s\text{ is less than or equal to }1 \\
+%       \text{Reduce}((g_i, 1, s_i)(1, 1, -s_i), S) = \text{Reduce}{\text{MulFree}(g_i)(S) \\
+%       \text{Reduce}((g_i, n_i, s_i)(1,1,-s_i), S) = \text{MulFree}
+%     \end{cases}
+%   \end{equation}
+  % \begin{equation}
+  %    (g_i, n_i, s_i), (1, n_{i+1}, -s_i), s
+  % \end{equation}
+  % and replaces it with the following
+    % \begin{equation}
+    %   \begin{cases}
+    %     (g_ig_{i+2}, 1, s_{i+2}), (g_{i+2}, n_{i+2} - 1, s_{i+2}) & n_i = n_{i+1} = 1 \\
+    %     (g_i, n_i - 1, s_i), (g_i g_{i+2}, 1, s_{i+2}), (g_{i+2}, n_{i+2}, s_{i+2}) &
+    %       n_i > 1 \text{ and } n_{i+1} = 1 \\
+    %     (g_i, 1, -s_i), (1, n_{i+1}-1, -s_i), (g_i g_{i+2}, n_{i+2}, s_{i+2}) &
+    %       n_i = 1 \text{ and } n_{i+1} > 1
+
+    %   \end{cases}
+    % \end{equation}
+
+Multiplication can be defined on this representation.
+For a finite sequence $S := (g_1, n_1, s_1), \dots, (g_k, n_k, s_k)$
+define
+\begin{equation}
+  p(S) := \prod_{i=1}^k g_i
+\end{equation}
+
+For a pair of sequence $S$ and $T$ use the notation $S,T$ to append the sequences.
+Then the product of two sequences $S$ and $T$, $S\cdot T$ is defined to be
+\begin{equation}
+  S \cdot T = \text{Reduce}(S, \text{MulFree}(p(S), T))
+\end{equation}
+
+It may be sensible to store $p(S)$ as part of the data of a sequence $S$ so it does not
+need to be recomputed every time sequences are multiplied.
+
+As an illustration of the efficiency of this
+representation of the free group, consider certificates of equalities
+of the form $\overline(wr)^n \overline{w^{-n}} = 1$ for
+large positive values of $n$,
+have a much shorter representation.
+In the efficient representation this certificate will
+be
+\begin{equation}
+  (w, |n|, \text{sgn}(n))
+\end{equation}
+so the sequence
+will be of length either $2$ or $1$. In the less efficient representation,
+this certificate will be
+\begin{equation}
+  \prod_{i=1}^n [w^i]
+\end{equation}
+
+This certificate will be a sequence of length $n$ even after the word is reduced,
+the overall data used will be quadratic in $n$, since the length of the letters
+increases with the size of $n$ as well.
+
+\subsection{Adding and Removing Subscripts}
 
 Given a letter $t$ in the free group over a set $S$, we can define a map into a
 semidirect product.
@@ -474,7 +719,7 @@ $(w', 0_{\mathbb{Z}})$.
 RemoveSubscripts is a group homomorphism and if $r$ is a word such that $\text{AddSubscripts}(r)$ is of the form $(r', 0_\mathbb{Z})$,
 then $\text{RemoveSubscripts}(r')=r$.
 
-\section{Magnus' Method}
+\subsection{Overview of The Method}
 
 Given an element $w \in F(S)$ of a free group, a relation $r$ in the free group, and a subgroup of the free group
 generated by a set of letters $T$,
@@ -498,7 +743,7 @@ to make the correct proof certificate after conjugating $r$.
 
 
 
-\subsection{Case 1: All letters in r are in T}\label{allinT}
+\subsubsection{Case 1: All letters in r are in T}\label{allinT}
 For this case it is helpful to consider the group $F(S)$ as the
 coproduct of the subgroup generated by the letters in $T$ and
 the subgroup generated by the rest of the letters:
@@ -511,14 +756,14 @@ The problem can be reduced to deciding whether an element of $w_i \in F(T)$ is e
 To decide the word problem whenever $\overline{w_i} = 1$, perform this substitution and
 then check whether the resulting word in $F(T) \ast F(S \backslash T)$ is in $T$.
 
-\subsection{Case 2: There is a letter in r that is not in T}
-\subsubsection{Base Case}
+\subsubsection{Case 2: There is a letter in r that is not in T}\label{xandt}
+\textbf{Base Case}
 The base case is the case where the relation $r$ is of the form $a^n$ with
 $n \in \mathbb{Z}$, and $a$ a letter in $S$. It is straightforward to decide
 the word problem in this group, since $F(S) / a^n$ is isomorphic
 to the binary coproduct of $F(S \backslash \{a\})$ and $\mathbb{Z}/n\mathbb{Z}$.
 
-\subsubsection{Case 2a: Letter with exponent sum zero}\label{expsumzero}
+\textbf{Case 2a: Letter with exponent sum zero}\label{expsumzero}
 Apply the map $\text{AddSubscripts}(t)$ (Definition \ref{AddSubscripts}) to $r$.
 Since the exponent sum of $t$ is equal to zero, $\text{AddSubscripts}(t)(r)$ is
 of the form $(r', 0_\mathbb{Z})$.
@@ -535,16 +780,25 @@ problem in $F(S \times \mathbb{Z})$ with respect to $r'$. However, the image of 
 to $F(S \times \mathbb{Z})$ is not the normal closure of $r'$; it is the normal closure of
 the set of all relations of the form $\text{ChangeSubscript}(n)(r')$ for every $n$.
 
-Pick $x \in S$ such that $x \ne t,$
+Pick $x \in S$ such that $x \ne t$,
   $x$ is a letter in $r$ and such that $t \in T$ implies $x \notin T$.
   If this is not possible, then apply the procedure in Section \ref{allinT}.
   We can assume that the first letter of $r$ is
 $x$, since otherwise $r$ can be conjugated until the first letter is $x$.
 Let $a$ and $b$ be respectively the
 smallest and greatest subscript of $x$ in $r'$. Let $S'$ be the set
-$\{(i_1, i_2) \in S \backslash \{t\} \times \mathbb{Z} \ | \ i_1 \ne x \vee a \le i_2 \le b \}$.
+\begin{equation}
+S' := \{(i_1, i_2) \in S \backslash \{t\} \times \mathbb{Z} \
+| \ i_1 \ne x \vee a \le i_2 \le b \}
+\end{equation}
 
-Define two subsets of $S'$ by $A := S' \backslash \{x_b\}$ and $B := S' \backslash \{x_a\}$.
+Define two subsets of $S'$ by
+\begin{equation}
+  A := S' \backslash \{x_b\}
+\end{equation}
+\begin{equation}
+  B := S' \backslash \{x_a\}
+\end{equation}
 Then there is an isomorphism $\phi$ between $A$ and $B$ given by
 $\phi := \text{ChangeSubscript}(1)$.
 We claim the group $F(S) / r$ is isomorphic to the HNN extension of $F(S') / r'$ relative to $\phi$.
@@ -582,7 +836,7 @@ and the set $T' := \{ s_i \in S' | s \in T, i \in \mathbb{Z} \}$. If $t \notin T
 this amounts to checking that $n = 0$ and solving the word problem for
 $r'$ and the set $T' := \{s_0 \in S' | s \in T\}$.
 
-\textbf{Case 2.b: No letter with exponent sum zero}
+\textbf{Case 2.b: No letter with exponent sum zero}\label{noexpsumzero}
 
 If there is no letter $t$ in $r$ with exponent sum zero, then choose $x$
 and $t$ such that $x \ne t$ and such that if $t \notin T$ then $x \notin T$.
@@ -636,7 +890,7 @@ $\overline{\psi(T)}$, one can first write it as a word in $w' \in T $ if possibl
 and then check if $w'$ is in $\psi(T)$.
 The exponent sum of $t$ in $\psi(r)$ is $0$, so the problem of checking
 if $\psi(w)$ can be written as a word in $T$ can be solved using
-the method described in Section \ref{expsumzero}.
+the method described in Section \ref{expsumzero} (Sort out this label).
 
 If $t \in T$ then $\psi(T)$ is generated by
 $T' := T \backslash \{t\} \cup t^\beta$. By the Freiheitsatz, if $\psi(w)$ can be written
@@ -829,6 +1083,71 @@ any easier. So in this example it is better to start rewriting on the left, and 
 if $\overline{w_0} \notin \overline{A}$ then it will not be possible to eliminate the $t$'s, so the
 algorithm can fail straight away without attempting more rewrites.
 
+\subsubsection{Other Potential Improvements}
+
+There are other potential improvements that could be made but it is not clear
+what effect, positive or negative, they would have on performance. These are discussed
+in this section.
+
+A potential improvement is changing the definition of the set $S'$ in Section \ref{xandt},
+to make the set as small as possible.
+First define the set $X$
+of letters that meet the criteria for $x$ from Section \ref{xandt}.
+
+\begin{equation}
+  X := \{ x \in S \backslash \{t\} |
+    x \text{ is contained in }r \text{ and } \ (x \notin T \text{ or } t \notin T) \}
+\end{equation}
+
+For any $x \in X$, $a(x)$ and $b(x)$ would be defined in a similar way to $a$ and
+$b$ in Section \ref{xandt}, as the maximum and minimum subscripts of $x$ in the word
+$\text{AddSubscript}(t)(r)$. Then
+
+\begin{equation}
+  S' := \{(x, n) \in S \backslash \{t\} \times \mathbb{Z} \
+| \ x \notin X \text{ or } a_x \le n \le b_x \}
+\end{equation}
+
+The sets $A$ and $B$ are then defined in an analogous way to in Section \ref{xandt}.
+
+\begin{equation}
+  A := S' \backslash \{(x, b (x)) \ |\  x \in X\}
+\end{equation}
+\begin{equation}
+  B := S' \backslash \{(x, a (x)) \ |\  x \in X\}
+\end{equation}
+
+The sets $A$ and $B$ are smaller than the alternative definition, where the constraints
+on $n$ are only applied to one letter $x$, rather than a set of letters $x$. The fact
+that the set is smaller means that the rewrites in the HNN normalization process
+are less likely to suceed. This may not seem like a good thing, but it is faster for
+some examples.
+
+Consider the following Example, a slight modification of Example \ref{ltrbad2}.
+
+\begin{exmpl}\label{ltrbad3}
+    Suppose $r = txt^{-1}(xy)^{-2}$,
+    then $r' := \text{AddSubscript}(t)(r) = {x_1}(x_0y_0)^{-2}$ and
+    suppose $w = t^n x_1y_1 t (x_0y_0)^{-1}$, where $n > 0$.
+
+    Suppose $S'$ is defined to be the set $\{x_0, x_1, y_0, y_1\}$.
+    Then the only rewrite possible in the HNN normalization
+    process is to substitute $t(x_0y_0)^{-1}$ with
+    $(x_1y_1)^{-1}t$ after which the word will already be in HNN
+    normal form.
+
+    If alternatively, $S'$ is defined to be just $\{x_0, x_1\}$,
+    then it is also possible to perform a substitution on the left,
+    rewriting $t^nx_1y_1$ to $t^{n-1}(y_1x_1)^2y_2$, after which it
+    is still possible to perform many more rewrites on the left hand side,
+    meaning the word will be normalized in many more steps.
+\end{exmpl}
+
+Whilst changing the definition of $S'$ potentially takes away potential
+rewrites, in at least one example the option it took away was a bad
+rewrite to make anyway.
+
+
 
 % There are also examples of where starting on the left is more effective.
 % Suppose $r'$ is the same by $w$ is now equal to
@@ -852,7 +1171,7 @@ algorithm can fail straight away without attempting more rewrites.
 
   However starting on the left with the pair $tw_0$
   might also be the best thing to do, since starting on the left would
-  make the second problem easier, giving the word $\phi()bw_1 t w_2$.
+  make the second problem easier, giving the word $\phi(bw_1 t w_2)$.
 \end{exmpl}
 
 \begin{exmpl}\label{ltrbad2}
@@ -869,15 +1188,23 @@ for simple examples, with only two occurrences of a power of $t$.
 It is not possible to generalize this to more complicated examples,
 but some sensible heuristics are possible.
 
+The implemented code normalises the word from left to right, always applying
+a substitution at the leftmost position where one is possible. This was found to have better
+performance than right to left normalisation, probably because the cancellation
+in Example \ref{rtlbad} is more likely than the cancellation in the Example \ref{ltrbad}.
+
+We describe below a potentially improved way of performing the rewrites in the
+an order with good performance.
+
 Consider a word $W := w_0t^{n_1}w_1 \dots t^{n_{k-1}}w_{k-1}t^{n_k}w_k$, and the
 following two sets
 
-\begin{equation*}
-  \begin{aligned}
-    R^{+} := \left\{ i | \forall j, \sum_0^i n_i \le \sum_0^j n_j\right\} \\
-    R^{-} := \left\{ i | \forall j, \sum_0^i n_i \ge \sum_0^j n_j\right\}
-  \end{aligned}
-\end{equation*}
+\begin{equation}
+    R^{+} := \left\{ i \ | \ \forall j, \sum_0^i n_i \le \sum_0^j n_j\right\}
+\end{equation}
+\begin{equation}
+    R^{-} := \left\{ i \ | \ \forall j, \sum_0^i n_i \ge \sum_0^j n_j\right\}
+\end{equation}
 
 Let $I$ be the smaller of the two intervals $[\min R^+, \max R^+]$ and
 $[\min R^{-}, \max R^-]$.
@@ -887,11 +1214,21 @@ $\text{sgn}(n_i) \ne \text{sgn}(n_{i+1})$.
 
 Then $Q$ has the property that if there are no applicable rewrites
 in the set $Q$, then the word cannot be put into the form $wt^n$ with $w \in F(S')$.
+This is because if no rewrite can be performed at the first and last pairs $t^{n_i}w_i$
+in the interval, then no substitutions performed outside this interval will
+make these rewrites possible.
 
 The rewriting procedure always chooses a rewrite within the set $Q$, prioritising
 pairs $w_it^{n_i}$ where $w_i$ has the least occurences of letters not in
-the set $T$, (likely to be the fastest problems to solve).
-This heuristic mitigates the exponential behaviour described in Example \ref{ltrbad}
+the set $T$. These are likely to be the fastest problems to solve.
+This heuristic mitigates the exponential behaviour described in Example \ref{ltrbad}.
+
+Care must also be taken to ensure that equivalent problems are not attempted twice.
+For example if a rewrite is attempted at a pair $t^{n_i}w_i$, where $0 < n_i$
+and fails because $\overline{w_i} \notin A$ is not in the relevant subgroup,
+and then later on after substitutions elsewhere, this pair becomes
+$t^{n_i}w_i\phi^{-1}(w_k)$, then since $\phi^{-1}(w_k) \in A$, then a rewrite
+is still not possible here so none should be attempted.
 
 
 
@@ -1015,6 +1352,88 @@ This heuristic mitigates the exponential behaviour described in Example \ref{ltr
 % will make words longer, and so the left to right normalization produces shorter proofs.
 % The left to right normalization was found to produce shorter proofs in practice.
 
+\subsection{Shortening Proofs}
+
+Most of the tactic execution time is spent generating and checking the Lean proof,
+and not on generating the proof certificate described in Section \ref{proofcert}.
+An algorithm was defined which implemented some heuristics to shorten the certificates
+produced. There are two heuristics used to do this.
+
+There are three equalities that the heuristics make use of. Recall that
+a certificate is an element of $P(F(S))$, which is a semidirect product of $F(S)$
+and $F(F(S))$. Given an element $p \in F(F(S))$, we aim to find an element
+$p' \in F(F(S))$ such that $\text{Eval}(p) = \text{Eval}(p')$ (Definition \ref{Eval}).
+Given a relator $r$, and words $w, v \in F(S)$, the heuristics make use of the following equalities.
+
+\begin{equation}\label{golf1}
+  \text{Eval}([w]) = \text{Eval}([wr^n])
+\end{equation}
+
+\begin{equation}\label{golf2}
+  \text{Eval}([w][v]) = \text{Eval}([wrw^{-1}v][w])
+\end{equation}
+
+\begin{equation}\label{golf3}
+  \text{Eval}([w][v]) = \text{Eval}([v][vr^{-1}v^{-1}w])
+\end{equation}
+
+A total order $(<)$ is put on the set of words in $F(S)$, this order has
+the property the if $\text{Length}(w) < \text{Length}(v)$, then
+$r(w,v)$. It is not important what the relation is on words of the same length,
+as long as it is a total order, but the Lean implementation uses a lexicographic ordering.
+
+\begin{defn}[Golf\textsubscript{1}]
+$\text{Golf}_1$ folds through a word $p \in F(F(S))$ and replaces each
+letter $w \in F(S)$ with the least word of the form $wr^n$.
+It also performs any cancellations that can be performed after
+performing these substitutions, to return a reduced word $p' \in F(F(S))$.
+In practice, there are very often cancellations
+that can be performed after this normalization of each letter.
+\end{defn}
+
+\begin{defn}[Golf\textsubscript{2}]
+  $\text{Golf}_2$ performs substitutions of the form in Equations \ref{golf2} and
+  \ref{golf3}. If $wrw^{-1}v$ is less than $v$, it will perform the substition
+  in Equation \ref{golf2}, and if $vr^{-1}v^{-1}w$ is less than $w$ it performs
+  this substitution. It performs these substitiutions until no more can be made.
+  Again, it performs any cancellations that can be performed to return
+  a reduced word.
+\end{defn}
+
+\begin{defn}[Golf]
+  For an element $(p, w) \in P(F(S))$, $\text{Golf}(p, w)$ is defined to be
+  $((\text{Golf}_2 \circ \text{Golf}_1)(p), w)$.
+\end{defn}
+
+These heuristics were surprisingly effective at shortening the proof certificates.
+As an extreme example, if $r = aba^{-11}b^4$, and
+$w = a^{10}b^{-4}a^{11}b^{-1}ab a^{-11} b^5a^{-11}b a^{11}b^{-1}a^{-1}b^{-1}a^{-10}$,
+then the certificate produced by $\text{Solve}$ that $\overline{w} =1$
+ has length $72$ before shortening and length $4$ after shortening.
+ This shortens the overall tactic execution from 54 seconds to around
+ 3 seconds, with only 120ms spent executing Golf.
+
+The biggest benefit of the $Golf$ function, is that it reduces the number
+of letters in a certificate $p \in F(F(S))$, not just the length of each letter
+$w \in F(S)$. It does this because shortening each letter, is also
+canonicalising the letters, making cancellation more likely. This is the motivation
+for putting a total order on the set of letters $w \in F(S)$.
+For example, if $w$ and $wr$ are the same length, but $w < wr$, then
+the word $[w][wr]^{-1}$, would not be reduced if Golf only compared lengths of letters,
+but would be is reduced to $1$ by using a total order.
+
+% If $w \in F(S)$, then $\text{Eval}([w]) = wrw^{-1}$. Therefore, for any power of $r$, $r^n$,
+% $\text{Eval}([wr^n]) = \text{Eval}([w])$. If $wr^n$ is shorter than $w$,
+% then $[wr^n]$ is a shorter certificate of an equality than $[w]$. The first
+% heuristic goes through a word $p \in F(F(S))$, and replaces any letter $w$ with
+% $wr^n$ if it is shorter. It also performs any cancellations that can be performed after
+% performing these substitutions. In practice, there are very often cancellations
+% that can be performed after this normalization of each letter.
+
+% Given a word of length $2$ in $F(F(S))$, $[w][v]$, then there are
+% two ways of generating a certificate of the same equality.
+
+
 \subsection{Heuristics}
 
 A few heuristics are implemented when there is a simpler method than Magnus' method.
@@ -1037,7 +1456,7 @@ They are implemented in the following order
     in $w$.
 \end{itemize}
 
-\subsection{Injectivity}\label{powproof}
+\subsubsection{Injectivity}\label{powproof}
 
 The correctness of the algorithm relies on the fact that the map $\psi_2$ is an injective map.
 Since $\psi_2$ is injective, if $p \in P(F(S))$ is a witness of the congruence
@@ -1111,8 +1530,9 @@ $\theta(w) = \psi_2(w)$.
 
 \textbf{Proof of Lemma \ref{powproof1}.} $\prod_{i=0}^a s_i^{k_i}$ can be written as a reduced
 word $\prod_{i = 1}^{c} u_i^{k'_i}$ such that $k'_i$ is never equal to zero and
-$u_i \ne u_{i+1}$ for any $i$. The set of partial products of this
-$\prod_{i = 1}^{c} u_i^{k'_i}$ is a subset of the set of partial products of $\prod_{i=1}^a s_i^{k_i}$,
+$u_i \ne u_{i+1}$ for any $i$. The set of partial products of this,
+$\prod_{i = 1}^{c} u_i^{k'_i}$, is a subset of the set of partial products of
+$\prod_{i=1}^a s_i^{k_i}$,
 therefore the exponent sum of $t'$ in every partial product of $\prod_{i=1}^a s_i^{k_i}$, is
 either $0$ or not a multiple of $n$. However, by assumption every occurrence $t'^k$ in
 $\prod_{i=0}^a s_i^{k_i}$, $k$, is a multiple of $n$, so the exponent sum of $t'$ in every
@@ -1142,7 +1562,7 @@ $\psi_2(\text{Eval}(r)(F(\text{PowProof})(p)) =
   \psi_2(\text{Eval}(r)(F(h)(p))) =
   \theta(\text{Eval}(r)(F(h)(p))) =
   \text{Eval}(\psi_2(r))(p)$.
-  \section{Efficiency of the Algorithm}
+\section{Efficiency of the Algorithm}
 
   The worst case performance of this algorithm is worse than any finite tower of exponents
   \cite{miasnikov2011word}. The more relevant question is what is the typical performance.

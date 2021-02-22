@@ -1,3 +1,4 @@
+\newcommand{\etalchar}[1]{$^{#1}$}
 \providecommand{\bysame}{\leavevmode\hbox to3em{\hrulefill}\thinspace}
 \providecommand{\MR}{\relax\ifhmode\unskip\space\fi MR }
 % \MRhref is called by the amsart/book/proc definition of \MR.
@@ -5,7 +6,20 @@
   \href{http://www.ams.org/mathscinet-getitem?mr=#1}{#2}
 }
 \providecommand{\href}[2]{#2}
-\begin{thebibliography}{MUW11}
+\begin{thebibliography}{dMKA{\etalchar{+}}18}
+
+\bibitem[Col86]{collins1986}
+Donald~J. Collins, \emph{A simple presentation of a group with unsolvable word
+  problem}, Illinois J. Math. \textbf{30} (1986), no.~2, 230--234.
+
+\bibitem[dMKA{\etalchar{+}}18]{de_moura_kong_avigad_van_doorn_von_raumer_2018}
+Leonardo de~Moura, Soonho Kong, Jeremy Avigad, Floris Van~Doorn, and Jakob von
+  Raumer, \emph{The lean theorem prover (system description)}, Jun 2018.
+
+\bibitem[mC20]{ThemathlibCommunity2020}
+The mathlib Community, \emph{The lean mathematical library}, Proceedings of the
+  9th ACM SIGPLAN International Conference on Certified Programs and Proofs
+  (2020).
 
 \bibitem[Mil68]{CharlesF.Miller1968OBTA}
 Charles~F. Miller, \emph{On {B}ritton's theorem {A}}, Proceedings of the
