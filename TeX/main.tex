@@ -263,7 +263,7 @@ $a^nba^{-n} = b^{2^n}$. Between the \lstinline{begin ... end}, the user can
 write tactics to produce a proof of the proposition.
 
 \begin{lstlisting}
-  example {G : Type*} [group G] (a b : G) (h : a * b = b ^ 2 * a) (n : ℕ) :
+  example {G : Type} [group G] (a b : G) (h : a * b = b ^ 2 * a) (n : ℕ) :
     a ^ n * b * a ^ -↑n = b ^ 2 ^ n :=
   begin
 
@@ -273,7 +273,7 @@ If the user types the above code then the following tactic state is displayed to
 
 \begin{lstlisting}
   1 goal
-  G : Type u_1,
+  G : Type,
   _inst_1 : group G,
   a b : G,
   h : a * b = b ^ 2 * a,
@@ -283,8 +283,7 @@ If the user types the above code then the following tactic state is displayed to
 
 The turnstile \lstinline{⊢} indicates the current goal, the proposition the user
 is currently trying to prove. The preceding lines indicate the hypotheses and variables.
-\lstinline{G : Type u_1} indicates that \lstinline{G} is a type in an arbitrary universe
-\lstinline{u_1}. \lstinline{_inst_1} is a group structure on the Type \lstinline{G}.
+\lstinline{G : Type} indicates that \lstinline{G} is a type. \lstinline{_inst_1} is a group structure on the Type \lstinline{G}.
 A term of type \lstinline{group G}, is a tuple containing a binary operation on
 \lstinline{G}, an identity, and an inverse function, as well as proofs that these
 satisfy the group axioms. \lstinline{a} and \lstinline{b} are elements of
@@ -303,14 +302,14 @@ The tactic state after this line will now be
 \begin{lstlisting}
   2 goals
   case nat.zero
-  G : Type u_1,
+  G : Type,
   _inst_1 : group G,
   a b : G,
   h : a * b = b ^ 2 * a
   ⊢ a ^ 0 * b * a ^ -↑0 = b ^ 2 ^ 0
 
   case nat.succ
-  G : Type u_1,
+  G : Type,
   _inst_1 : group G,
   a b : G,
   h : a * b = b ^ 2 * a,
@@ -653,7 +652,10 @@ We can now define a reduction map to eliminate pairs of the form
     % \end{equation}
 
 Multiplication can be defined on this representation.
-For a finite sequence $S := (g_1, n_1, s_1), \dots, (g_k, n_k, s_k)$
+For a finite sequence
+\begin{equation}
+  S := (g_1, n_1, s_1), \dots, (g_k, n_k, s_k)
+\end{equation}
 define
 \begin{equation}
   p(S) := \prod_{i=1}^k g_i
@@ -1675,26 +1677,133 @@ found to be a lot slower, since so much time was spent checking whether words we
 
 The method mentions a cost function which was not defined yet. Two cost functions
 were tested, one was simply the length of a word, the other effectively ordered words
-by length first and then lexicographically.
+by length first and then lexicographically, after the letters are put in some arbitrary order.
 
 The second cost function was defined as follows. Suppose $n$ is the total number of
 letters in all words in $R$ and the target word $w$.
+Label the letters $a_1, \dots a_n$. Then the cost of a word is defined inductively on the
+length of the word as follows
+
+\begin{equation}
+  \text{Cost}(1) = 0
+\end{equation}
+
+\begin{equation}
+  \text{Cost}(a_i^{\pm1} w) = i + n \text{Cost}(w)
+\end{equation}
+
+
+This cost function was found to have better performance than simply using the length of a word
+as the cost function. As an example consider the problem of proving that
+if $ab = ba$, then $a^5b^5=b^5a^5$. Using length as the cost function, the size
+of the search graph for this problem is 5906, but using the improved cost function,
+the search graph size contains 604 words. This method is obviously not the
+best method for problems in abelian groups like this, but the improved cost
+function should also speed up the search in problems where some, but not all
+of the variables commute.
+
+\subsection{Substitution heuristic}
+Sometimes it happens that it is very straightforward to eliminate a variable. For example,
 
 \subsection{Generating Proofs}
 In order to generate proof terms the algorithm must keep track of what path was taken
+to rewrite a word to the identity. The following information is stored at each node
+in the search graph, in the data type
+\begin{lstinline}
+  !path_step!
+\end{lstinline}
+
+\begin{lstlisting}
+@[derive inhabited] structure path_step : Type :=
+(rel_index : ℕ) -- Index of the relator used to make the rewrite
+(rel_is_inv : bool) -- Boolean representing whether the relator or
+  --its inverse was used to make the substitution
+(old_word : free_group) -- word before the substitution was made
+(new_word : free_group) -- word after the substitution was made
+(new_word_cost : ℕ) -- cost of the new word
+(word_letter_index : ℕ) -- Letter index in the old word,
+  -- indicating where the substitution was made
+(rel_letter_index : ℕ) -- Letter index in the relator indicating
+  -- which letter in the relator was substituted.
+\end{lstlisting}
+
+This information is enough to retrack the path that was taken and write a
+proof that will always take the same standard form.
+
+Given words \begin{lstinline} !word₁ rel word₂ conj old_word new_word rel_conj! \end{lstinline}
+in the free group, it is true that if
+\begin{lstinline} !conj⁻¹ * word₁ * rel_conj⁻¹ * rel * rel_conj * word₂ * conj! \end{lstinline}
+is in the normal closure of a set of relators, \begin{lstinline}!word₁ * word₂ = old_word!\end{lstinline},
+and \begin{lstinline}!rel!\end{lstinline} is
+one of the relators, then \begin{lstinline}!old_word!\end{lstinline} is also in the
+normal closure of the set of relators.
+
+Intuitively, we are splitting \begin{lstinline}!old_word!\end{lstinline} into two parts,
+\begin{lstinline}!word₁!\end{lstinline} and \begin{lstinline}!word₂!\end{lstinline},
+inserting some conjugate of \begin{lstinline}!rel!\end{lstinline} in between
+\begin{lstinline}!word₁!\end{lstinline} and \begin{lstinline}!word₂!\end{lstinline},
+and then conjugating the result as well.
+
+\section{The Tactic}
+
+The practical problems that might come up in Lean proofs sometimes are not already in
+exactly the form that can be solved by the algorithm described, and some work
+is needed to convert them to a form that can be solved.
+
+As an example, consider the following proposition. If $a$ and $b$ are elements
+of a group, and $ab = b^2a$, then for any natural number $n$, $a^nba^{-n} = b^{2^n}$.
+The proof is by induction, and we consider the inductive step. The information
+visible to the user at the inductive step is as follows
+
+For the inductive step of this proof, we have the hypothesis that $ab = b^2a$,
+the induction hypothesis says that $a^nba^{-n} = b^{2^n}$,
+and we need to prove $a^{n+1}ba^{-(n+1)} = b^{2^{n+1}}$.
+
+This can be converted into a word problem. Our atoms will be
+$a$, $a^n$, $b$ and $b^{2^n}$ and we add assumptions for commuting powers,
+because $a$ commutes with $a^n$, and $b$ commutes with $b^{2^n}$.
+
+We will introduce new variables $c := a^n$ and $d := b^{2^n}$. The problem
+then becomes the following
+
+\begin{equation}
+  \begin{aligned}
+    ac=ca \\
+    bd=db \\
+    ab=b^2a \\
+    cbc^{-1} = d \\
+    \vdash acbc^{-1}a^{-1} = d^2
+  \end{aligned}
+\end{equation}
+
+We now descibe some of the process of converting the Lean tactic state into the
+problem above. The tactic state at the inductive step of this proof is
+
+\begin{lstlisting}
+  G : Type,
+  _inst_1 : group G,
+  a b : G,
+  h : a * b = b ^ 2 * a,
+  n : ℕ,
+  ih : a ^ n * b * a ^ -↑n = b ^ 2 ^ n
+  ⊢ a ^ n.succ * b * a ^ -↑(n.succ) = b ^ 2 ^ n.succ
+\end{lstlisting}
+
+
+
+
 
 
 \section{To Do}
 \begin{itemize}
   \item Comparison with Z3/sledgehammer whatever
-  \item Talk about the injectivity proof and how there is never in practice
-    a $t$ that isn't $t^n$.
   \item Comparison of search method and one-relator method
-  \item Cost functions for tree search
   \item No other implementations for Magnus' method
   \item Mention that source that said Knuth Bendix was no good, maybe compare
     other potential approaches
   \item Mention crappy justification for termination of search
+  \item Mention how it adds commutativity assumptions for powers.
+  \item Mention substitution.
 \end{itemize}
 
 \bibliography{references}
