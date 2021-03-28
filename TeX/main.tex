@@ -1458,7 +1458,7 @@ They are implemented in the following order
     in $w$.
 \end{itemize}
 
-\subsubsection{Injectivity}%%\label{powproof}
+\subsubsection{Injectivity}\label{powproofs}
 
 The correctness of the algorithm relies on the fact that the map $\psi_2$ is an injective map.
 Since $\psi_2$ is injective, if $p \in P(F(S))$ is a witness of the congruence
@@ -1620,6 +1620,36 @@ $\psi_2(\text{Eval}(r)(F(\text{PowProof})(p)) =
   online solver written Kyle Miller, with some modifications since that solver
   would sometimes fail to prove true formulas.
 
+  This section describes a solver that attemps to prove a word in the free group
+  is in the normal closure of a finite set of relators. It then describes
+  a Lean tactic that makes use of this solver, but employs some methods
+  to convert various Lean tactic states into a form that can be tackled by
+  the solver.
+
+\subsection{Substitution heuristic}\label{subst}
+  Sometimes it happens that it is very straightforward to eliminate a variable.
+  For example, if one of the relators has exactly one occurence of one of the
+  letters, then this letter and the relator can easily be eliminated.
+
+  For example, consider the following problem.
+
+  \begin{equation}
+    \begin{aligned}
+      aba =b^{-1}c \\
+      bac^2ba^2 = 1 \\
+      \vdash ab=ba
+    \end{aligned}
+  \end{equation}
+
+The first equation can be rewritten as $c = baba$, which means that $c$ can be eliminated
+from the problem, and the new problem is
+\begin{equation}
+  \begin{aligned}
+    babababa^2 = 1 \\
+    \vdash ab=ba
+  \end{aligned}
+\end{equation}
+
 \subsection{Outline}
 
   Given a set of relators $R$, the method first generates a set of rewriting rules
@@ -1655,6 +1685,7 @@ $\psi_2(\text{Eval}(r)(F(\text{PowProof})(p)) =
   In summary, the process is as follows given a word $w$ that we are trying to prove is equal
   to $1$.
   \begin{enumerate}
+    \item Eliminate as many variables as possible using the method outlined in Section \ref{subst}
     \item Generate the set $G$ of all rewriting rules such that there is one letter on the
       left hand side that can be generated from the starting relators.
     \item We store two sets of words, a set of seen words $S$, and a set of leaves $L$.
@@ -1668,10 +1699,11 @@ $\psi_2(\text{Eval}(r)(F(\text{PowProof})(p)) =
   \end{enumerate}
 
 A slightly different approach to the above approach would be to check if
-a word is in the set $S$ of seen words at step 4, and add it to both sets $S$ and $L$
+a word is in the set $S$ of seen words at step 5, and add it to both sets $S$ and $L$
 if it was not in $S$, and neither set otherwise, and then there would be no need to check
-if words were in $S$ at step 5, and the set $L$ would be much smaller. However, this was
+if words were in $S$ at step 6, and the set $L$ would be much smaller. However, this was
 found to be a lot slower, since so much time was spent checking whether words were in $S$.
+
 
 \subsection{Cost Function}
 
@@ -1701,9 +1733,6 @@ the search graph size contains 604 words. This method is obviously not the
 best method for problems in abelian groups like this, but the improved cost
 function should also speed up the search in problems where some, but not all
 of the variables commute.
-
-\subsection{Substitution heuristic}
-Sometimes it happens that it is very straightforward to eliminate a variable. For example,
 
 \subsection{Generating Proofs}
 In order to generate proof terms the algorithm must keep track of what path was taken
@@ -1766,7 +1795,7 @@ because $a$ commutes with $a^n$, and $b$ commutes with $b^{2^n}$.
 We will introduce new variables $c := a^n$ and $d := b^{2^n}$. The problem
 then becomes the following
 
-\begin{equation}
+\begin{equation}\label{problem}
   \begin{aligned}
     ac=ca \\
     bd=db \\
@@ -1777,7 +1806,9 @@ then becomes the following
 \end{equation}
 
 We now descibe some of the process of converting the Lean tactic state into the
-problem above. The tactic state at the inductive step of this proof is
+problem above. The tactic has to effectively identify the atoms,
+\begin{lstinline} !a! \end{lstinline}, \begin{lstinline} !a ^ n! \end{lstinline},
+\begin{lstinline} !b! \end{lstinline}, and \begin{lstinline} !b ^ 2 ^ n! \end{lstinline}.
 
 \begin{lstlisting}
   G : Type,
@@ -1789,8 +1820,70 @@ problem above. The tactic state at the inductive step of this proof is
   ⊢ a ^ n.succ * b * a ^ -↑(n.succ) = b ^ 2 ^ n.succ
 \end{lstlisting}
 
+Note that \begin{lstinline} !n.succ! \end{lstinline} means $n + 1$, or the
+successor of $n$. Another thing to note is the coercion arrow
+\begin{lstinline} !↑! \end{lstinline}. This arrow represents the canonical map
+from the natural numbers to the integers - usually in maths, this is not explicitly
+written, but in Lean it must be used, and this provides a small challenge in
+identifying the atoms, care has to be taken to ensure that the tactic identifies
+that
+\begin{lstinline} !a ^ -↑n! \end{lstinline} is indeed the inverse of
+\begin{lstinline} !a ^ n! \end{lstinline}.
 
+Formally speaking the \begin{lstinline} !^! \end{lstinline} notation
+is being used for two distinct functions in this tactic state. One
+is a binary function whose domain is $G \times \mathbb{Z}$,
+the other has domain $G \times \mathbb{N}$. There is a lemma in Lean
+identifying that these two functions are compatible, in other words,
+that applying the natural number power function, is the same as
+applying the canonical map from $\mathbb{N}$ to $\mathbb{Z}$, and then
+applying the integer power. The tactic must invoke this lemma in order to prove
+that \begin{lstinline} !a ^ -↑n! \end{lstinline} is the inverse of
+\begin{lstinline} !a ^ n! \end{lstinline}.
 
+The tactic must also identify that \begin{lstinline} !b ^ 2 ^ n.succ! \end{lstinline}
+is equal to \begin{lstinline} !(b ^ 2 ^ n) ^ 2! \end{lstinline}.
+
+In order to transform this tactic state into the problem in Equation \ref{problem},
+the hypotheses and the goal must first be rewritten. Below is an incomplete list of some
+of the rules used to normalize the goal.
+
+\begin{itemize}
+  \item Normalize all numerals to the form
+    $1 + 1 + 1 + \dots$
+  \item Normalize all powers to use the integer power, not the natural power
+  \item Rewrite expression of the form $a ^ (m + n)$ to $a^m a^n$
+  \item Apply the distributivity law within exponents, expand
+    $a(b+c)$ to $ab + ac$.
+\end{itemize}
+
+Lean has an inbuilt tactic called \begin{lstinline} !simp! \end{lstinline} which is used
+to perform the above substitutions.
+
+Normalizing all numerals to the form $1 + 1 + 1 + \dots$, may seem very inefficient,
+but whilst it is certainly not the fastest approach, the
+solving algorithm has such poor performance on large exponents, that it is not made
+that much worse by this approach, and the tactic should probably not be used with
+large exponents anyway.
+
+After this normalization procedure is applied, the new tactic state is as follows.
+Note that this stage will be invisible to the user of the tactic.
+
+\begin{lstlisting}
+  G : Type,
+  _inst_1 : group G,
+  a b : G,
+  h : a * b = b * b * a,
+  n : ℕ,
+  ih : a ^ ↑n * b * (a ^ ↑n)⁻¹ = b ^ ↑((1 + 1) ^ n)
+  ⊢ a * a ^ ↑n * b * (a ^ ↑n * a)⁻¹ = b ^ ↑((1 + 1) ^ n) * b ^ ↑((1 + 1) ^ n)
+\end{lstlisting}
+
+Now it is easier to identify the atoms, since \begin{lstinline} !a ^ ↑n! \end{lstinline}
+appears in exactly the same form wherever it appears, and similarly, \begin{lstinline} !b ^ ↑((1 + 1) ^ n)!
+\end{lstinline} appears as the exact same expression each time it appears.
+
+\section{Comparison of Methods}
 
 
 
@@ -1801,9 +1894,10 @@ problem above. The tactic state at the inductive step of this proof is
   \item No other implementations for Magnus' method
   \item Mention that source that said Knuth Bendix was no good, maybe compare
     other potential approaches
-  \item Mention crappy justification for termination of search
-  \item Mention how it adds commutativity assumptions for powers.
-  \item Mention substitution.
+  \item Mention crappy justification for termination of search.
+  \item Mention injectivity of map into HNN. Is this actually needed?
+  \item Mention stuff about proof by computation, e.g. the idea of
+    proof by verified algorithm, pros, cons.
 \end{itemize}
 
 \bibliography{references}
