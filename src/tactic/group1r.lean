@@ -179,6 +179,7 @@ do (hyp_left, hyp_right) ← is_eq hyp_type,
   r_eq_one ← ic_lift
     (λ ic, ic.mk_app `group1r.group1r_m.mul_inv_eq_one_of_eq [hyp_left, hyp_right, hyp]),
   p ← group1r_m.lift (_root_.golf_solve (hyp_lhs * hyp_rhs⁻¹) ∅ (tgt_lhs * tgt_rhs⁻¹)),
+  group1r_m.lift $ tactic.trace (repr (list.map (λ x : Σ i : free_group ℕ, C∞, x.snd.nat_abs) p.left.1).sum),
   l ← free_group_free_group_to_expr p.left r r_eq_one,
   return (l, r_eq_one)
 
@@ -220,6 +221,16 @@ set_option profiler true
 -- begin
 --   group1r using h,
 -- end
+set_option profiler true
+-- example {G : Type*} [group G] (a b : G)
+--   (h : a * b * a^(-11 : int) * b^ 4 = 1) :
+--   a^10 * b^(-4 : int) * a^11 * b⁻¹ * a * b * a^(-11 : int) * b^5 * a^(-11 : int)
+--   * b * a^(11 : int) * b⁻¹ * a⁻¹ * b⁻¹ * a^(-10 : int) = 1 :=
+-- begin
+--   group1r using h,
+
+-- end
+
 
 example {G : Type} [group G] (a b c d : G) (h : a * b * c * a * b^2 = 1)
   (h2 : a * b * d * a * b * c^(-2 : int) = 1) :

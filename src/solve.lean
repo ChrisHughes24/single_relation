@@ -53,23 +53,29 @@ match golf_solve r T w with
 | none := ff
 end
 
--- #eval let r := (of 0 * of 1 * (of 0)⁻¹ * (of 1) ^ (-2 : int)) in
--- golf₁ r (solve r ∅ (of 0 ^ 10 * of 1 * of 0 ^ (-10 : int) * of 1 ^ (-1024 : int))).iget
 
 open free_group
 
+-- #eval let r := (of 0 * of 1 * (of 0)⁻¹ * (of 1) ^ (-2 : int)) in
+-- (solve r ∅ (of 0 ^ 10 * of 1 * of 0 ^ (-10 : int) * of 1 ^ (-1024 : int))).iget.left.length
+
 #eval let r := (of 0 * of 1 * (of 0)⁻¹ * (of 1) ^ (-2 : int)) in
-(golf_solve r ∅ ((of 0) ^ (5 : int) * of 1 * (of 0) ^ (- 5 : int) * of 1 * (of 0) ^
+let n := 9 in
+(solve r ∅ (of 0 ^ n * of 1 * of 0 ^ (-n : int) * of 1 * of 0 ^ n *
+  (of 1)⁻¹  * of 0 ^ (-n : int) * (of 1)⁻¹)).iget.left.length
+
+#eval let r := (of 0 * of 1 * (of 0)⁻¹ * (of 1) ^ (-2 : int)) in
+(solve r ∅ ((of 0) ^ (5 : int) * of 1 * (of 0) ^ (- 5 : int) * of 1 * (of 0) ^
   (5 : int) * (of 1)⁻¹ * of 0 ^ (- 5 : int) * (of 1)⁻¹)).iget.left.length
 
--- #eval let a := of 1 \ in let b := of 0 in
---   let r := a * b * a⁻¹ * b ^ (-2 : int) in
---   solve r ∅ (a^(-5 : int) * b * a^5 * b * a^(-5 : int) * b⁻¹ * a^5 * b⁻¹)
-
-#eval
-  let a := of 1 * of 0 in let b := (of 0)^2 * of 1 * of 2 in
+#eval let a := of 1 in let b := of 0 in
   let r := a * b * a⁻¹ * b ^ (-2 : int) in
-  (golf_solve r ∅ (a^(-5 : int) * b * a^5 * b * a^(-5 : int) * b⁻¹ * a^5 * b⁻¹)).iget.left.length
+  solve r ∅ (a^(10 : int) * b * a^(-10 : int)* b * a^(10 : int) * b⁻¹ * a^(-10 : int) * b⁻¹)
+
+-- #eval
+--   let a := of 1 * of 0 in let b := (of 0)^2 * of 1 * of 2 in
+--   let r := a * b * a⁻¹ * b ^ (-2 : int) in
+--   (golf_solve r ∅ (a^(-5 : int) * b * a^5 * b * a^(-5 : int) * b⁻¹ * a^5 * b⁻¹)).iget.left.length
 
 
 
@@ -94,20 +100,32 @@ open free_group
 -- -- ((solve (of "a" * of "b" * (of "a")⁻¹ * (of "b")⁻¹) ∅
 -- --     (of "a" ^ 2 * (of "b") * (of "a")⁻¹ ^ 2 * (of "b")⁻¹)).iget)
 
--- #eval let r := of 0 * of 1 * (of 0)^(-3 : ℤ) * (of 1)^4 in
+#eval let r := of 0 * of 1 * (of 0)^(-3 : ℤ) * (of 1)^4 in
 --   test r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0) * r⁻¹ * (of 0)⁻¹ * r)
---   --(solve r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0) * r⁻¹ * (of 0)⁻¹ * r)).iget.left
+(solve r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0) * r⁻¹ * (of 0)⁻¹ * r)).iget.left
 
--- #eval let r := of 0 * of 1 * (of 0)^(-5 : ℤ) * (of 1)^4 in
---   (test r ∅ (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)
---     * r⁻¹ * (of 0)⁻¹ * r))
+#eval let r := of 0 * of 1 * (of 0)^(-5 : ℤ) * (of 1)^4 in
+  (golf_solve r {0} (of 0 * of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)
+    * r⁻¹ * (of 0)⁻¹ * r)).iget.left.length
 
 -- #eval let r := of 0 * of 1 * (of 0)^(-5 : ℤ) * (of 1)^4 in
 -- (of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0) * r⁻¹ * (of 0)⁻¹ * r)
 
--- -- #eval let r := of 0 * of 1 * (of 0)^(-11 : ℤ) * (of 1)^4 in
--- --   (solve r ∅ (of 0 ^ 10 * of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)
--- --     * r⁻¹ * (of 0)⁻¹ * r * of 0 ^ (-10 : ℤ))⁻¹).iget.left.to_list.length
+#eval let r :=  of 0 * of 1 * (of 0)^(-11 : ℤ) * (of 1)^(4 : int) in
+(solve r ∅ (of 0 ^ 15 * of 1 * r * (of 1)⁻¹ * of 0 ^ (-15 : int) * r⁻¹)).iget.left.to_list.length
+
+#eval let r := of 0 * of 1 * (of 0)^(-11 : ℤ) * (of 1)^4 in
+  (solve r ∅ (of 0 ^ 10 * of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)
+    * r⁻¹ * (of 0)⁻¹ * r * of 0 ^ (-10 : ℤ))⁻¹).iget.left.to_list.length
+
+#eval let r := of 0 * of 1 * (of 0)^(-11 : ℤ) * (of 1)^4 in
+  (of 0 ^ 10 * of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)
+    * r⁻¹ * (of 0)⁻¹ * r * of 0 ^ (-10 : ℤ))⁻¹
+
+#eval let r := of 0 * of 1 * (of 0)^(-11 : ℤ) * (of 1)^4 in
+  let a := of 0 in let b := of 1 in
+  (solve r ∅ (a ^ 10 * b * a * b * a ^ (-11 : ℤ) * b ^ 3 * a ^ (-10 : ℤ) * b ^ (-4 : ℤ)
+    * a ^ 11 * b⁻¹ * a⁻¹)).iget.left.length
 
 -- #eval let r := of 0 * of 1 * (of 0)^(-9 : ℤ) * (of 1)^6 in
 --   (solve r {0} (of 0 ^ 7 * of 1 * r * (of 1)⁻¹ * r⁻¹ * (of 0)

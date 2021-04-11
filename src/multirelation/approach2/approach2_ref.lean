@@ -23,19 +23,21 @@ instance {α : Type} : inhabited (buffer α) := ⟨mk_buffer⟩
 (is_inv : bool) -- is it an inverse of a relation in my starting list?
 
 structure rewrite : Type :=
-(word_start_index : ℕ)
+(word_letter_index : ℕ)
 (rel_letter_index : ℕ)
 (cancel_length : ℕ)
 
 @[derive inhabited] structure path_step : Type :=
-(rel_index : ℕ)
-(rel_is_inv : bool)
-(old_word : free_group)
-(new_word : free_group)
-(new_word_cost : ℕ)
-(word_start_index : ℕ)
-(rel_letter_index : ℕ)
-(path_length : ℕ)
+(rel_index : ℕ) -- Index of the relator used to make the rewrite
+(rel_is_inv : bool) -- Boolean representing whether the relator or
+  --its inverse was used to make the substitution
+(old_word : free_group) -- word before the substitution was made
+(new_word : free_group) -- word after the substitution was made
+(new_word_cost : ℕ) -- cost of the new word
+(word_letter_index : ℕ) -- Letter index in the old word,
+  -- indicating where the substitution was made
+(rel_letter_index : ℕ) -- Letter index in the relator indicating
+  -- which letter in the relator was substituted.
 
 meta structure rewrites : Type :=
 (starting_rewrites : rb_map ℕ ℕ) -- (rel_starting_index, cancel_length)
@@ -45,13 +47,13 @@ meta structure rewrites : Type :=
 @[derive monad] meta def tree_m : Type → Type :=
 except_t path_step
   (reader_t (
-      tactic.ref (rb_lmap (ℕ × ℕ) path_step) × --leaves, indexed by word length and then path length
-      tactic.ref (rb_map (free_group) (path_step)) ×--seen
+      tactic.ref (rb_lmap ℕ path_step) × --leaves, indexed by cost
+      tactic.ref (rb_map free_group path_step) ×--seen
       buffer relation × ℕ)
     tactic)
 
 meta instance {α : Type} : has_coe (option α) (tree_m α) :=
-⟨λ o, o.elim ⟨return (except.error ⟨1, ff, 1, 1, 1, 1, 1, 0⟩)⟩ return⟩
+⟨λ o, o.elim ⟨return (except.error ⟨1, ff, 1, 1, 1, 1, 1⟩)⟩ return⟩
 
 meta def get_rels : tree_m (buffer relation) :=
 do x ← except_t.lift $ reader_t.read, return x.2.2.1
@@ -59,7 +61,7 @@ do x ← except_t.lift $ reader_t.read, return x.2.2.1
 meta def get_no_atoms : tree_m ℕ :=
 do x ← except_t.lift $ reader_t.read, return x.2.2.2
 
-meta def get_leaves : tree_m (rb_lmap (ℕ × ℕ) path_step) :=
+meta def get_leaves : tree_m (rb_lmap ℕ path_step) :=
 do x ← except_t.lift $ reader_t.read,
 except_t.lift $ reader_t.lift $ tactic.read_ref x.1
 
@@ -67,7 +69,7 @@ meta def get_seen : tree_m (rb_map free_group path_step) :=
 do x ← except_t.lift $ reader_t.read,
 except_t.lift $ reader_t.lift $ tactic.read_ref x.2.1
 
-meta def write_leaves (rb : rb_lmap (ℕ × ℕ) path_step): tree_m unit :=
+meta def write_leaves (rb : rb_lmap ℕ path_step) : tree_m unit :=
 do x ← except_t.lift $ reader_t.read,
 except_t.lift $ reader_t.lift $ tactic.write_ref x.1 rb
 
@@ -90,21 +92,21 @@ match l with
 | [p]               :=
   match seen.contains p.new_word with
   | ff := do
-    write_leaves (leaves.erase (p.new_word_cost, p.path_length)),
+    write_leaves (leaves.erase p.new_word_cost),
     write_seen (seen.insert p.new_word p),
     return p
   | tt := do
-    write_leaves (leaves.erase (p.new_word_cost, p.path_length)),
+    write_leaves (leaves.erase p.new_word_cost),
     get_min_leaf_and_erase
   end
 | (p :: l'@(_ :: _)) :=
   match seen.contains p.new_word with
   | ff := do
-    write_leaves (rb_map.insert leaves (p.new_word_cost, p.path_length) l'),
+    write_leaves (rb_map.insert leaves p.new_word_cost l'),
     write_seen (seen.insert p.new_word p),
     return p
   | tt := do
-    write_leaves (rb_map.insert leaves (p.new_word_cost, p.path_length) l'),
+    write_leaves (rb_map.insert leaves p.new_word_cost l'),
     get_min_leaf_and_erase
   end
 end
@@ -115,7 +117,6 @@ meta def stop (p : path_step) : tree_m path_step :=
 meta structure leaf_data :=
 (rel : relation)
 (word : free_group)
-(path_length : ℕ)
 
 @[derive monad] meta def leaves_m (α : Type) : Type :=
 reader_t leaf_data (state_t rewrites tree_m) α
@@ -134,21 +135,21 @@ meta def get_rewrites : leaves_m rewrites := reader_t.lift state_t.get
 meta def get_leaf_data : leaves_m leaf_data := reader_t.read
 
 meta def add_path (rw : rewrite) : leaves_m unit :=
-do ⟨rel, old_word, path_length⟩ ← get_leaf_data,
-  let new_word := cyclically_reduce (old_word.take rw.word_start_index
+do ⟨rel, old_word⟩ ← get_leaf_data,
+  let new_word := cyclically_reduce (old_word.take rw.word_letter_index
     * (rel.rel.rotate rw.rel_letter_index)⁻¹
-    * old_word.drop (rw.word_start_index)), --check if this is correct
+    * old_word.drop rw.word_letter_index), --check if this is correct
   no_atoms : ℕ ← tree_m.lift get_no_atoms,
   let new_cost := cost no_atoms new_word,
   let new_path : path_step :=
     ⟨rel.rel_index, rel.is_inv, old_word, new_word,
-      new_cost, rw.word_start_index, rw.rel_letter_index, path_length⟩,
+      new_cost, rw.word_letter_index, rw.rel_letter_index⟩,
   leaves ← tree_m.lift get_leaves,
-  tree_m.lift $ write_leaves (leaves.insert (new_cost, path_length) new_path)
+  tree_m.lift $ write_leaves (leaves.insert new_cost new_path)
 
 meta def match_starting_rewrites : leaves_m unit :=
 do c ← get_rewrites,
-⟨rel, word, path_length⟩ ← get_leaf_data,
+⟨rel, word⟩ ← get_leaf_data,
   c.starting_rewrites.fold
     (return ())
     (λ rel_letter_index cancel_length m,
@@ -159,7 +160,7 @@ do c ← get_rewrites,
         match c.completed_starting_rewrites.find
           ((rw.rel_letter_index + rw.cancel_length) % rel.length) with
         | (some length) :=
-            add_path ⟨rw.word_start_index, rw.rel_letter_index, rw.cancel_length + length⟩
+            add_path ⟨rw.word_letter_index, rw.rel_letter_index, rw.cancel_length + length⟩
         | none          := add_path rw
         end)
     ()
@@ -236,11 +237,10 @@ meta def grow_leaves_aux :
     (),
   grow_leaves_aux l₁ (x::word₂) word₂_length.succ
 
-meta def grow_leaves (rel : relation) (word : free_group)
-  (path_length : ℕ) : tree_m unit :=
+meta def grow_leaves (rel : relation) (word : free_group) : tree_m unit :=
 state_t.run
   (reader_t.run
-    (grow_leaves_aux word 1 0) ⟨rel, word, path_length.succ⟩)
+    (grow_leaves_aux word 1 0) ⟨rel, word⟩)
   ⟨mk_rb_map, mk_rb_map, []⟩ >>
 return ()
 
@@ -251,7 +251,7 @@ do p ← get_min_leaf_and_erase,
   else do rels ← get_rels,
     rels.iterate
       (return ())
-      (λ _ rel m, grow_leaves rel p.new_word p.path_length >> m) >>
+      (λ _ rel m, grow_leaves rel p.new_word >> m) >>
     solve_aux
 
 meta def make_relation (r : free_group) (rel_index : ℕ) (is_inv : bool)
@@ -282,8 +282,9 @@ meta def solve (rels : list (free_group)) (word : free_group) (no_atoms : ℕ) :
   tactic (path_step × rb_map (free_group) path_step) :=
 let max_letter : ℕ := max (max_letter (rels.argmax max_letter).iget) (max_letter word) in
 let i1 := except_t.run solve_aux in
-do tactic.using_new_ref (rb_lmap.insert (rb_lmap.mk _ path_step) (word.length, 0)
-    ⟨0, ff, 1, word, word.length, 0, 0, 0⟩) $ λ leaves,
+let word_cost := cost max_letter word in
+do tactic.using_new_ref (rb_lmap.insert (rb_lmap.mk _ path_step) word_cost
+    ⟨0, ff, 1, word, word_cost, 0, 0⟩) $ λ leaves,
 do tactic.using_new_ref mk_rb_map $ λ seen,
 do i2 ← reader_t.run i1
   (leaves, seen, make_rels rels max_letter, no_atoms),
@@ -316,11 +317,11 @@ trace_path_core 1 seen
 universe u
 
 meta def check_path_step (rels : list (free_group)) : path_step → bool
-| ⟨rel_index, rel_is_inv, old_word, new_word, _, word_start_index, rel_letter_index, _⟩ :=
+| ⟨rel_index, rel_is_inv, old_word, new_word, _, word_letter_index, rel_letter_index⟩ :=
 let rel : free_group :=
   cyclically_reduce (cond rel_is_inv ((rels.nth rel_index).iget⁻¹) (rels.nth rel_index).iget) in
-new_word = cyclically_reduce (old_word.take word_start_index * (rel.rotate rel_letter_index)⁻¹ *
-  old_word.drop word_start_index)
+new_word = cyclically_reduce (old_word.take word_letter_index * (rel.rotate rel_letter_index)⁻¹ *
+  old_word.drop word_letter_index)
 
 meta def check_path (rels : list (free_group)): list path_step → option path_step
 | [] := none

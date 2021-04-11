@@ -1,11 +1,11 @@
 import algebra.group
 import data.list.basic
 
-@[reducible] def free_group := list (ℕ × bool)
-
 namespace group_rel
 namespace free_group
 open native
+
+@[reducible] def free_group := list (ℕ × bool)
 
 def ap : free_group → free_group → free_group := (++)
 def cons (i : ℕ) (b : bool) (a : free_group) : free_group :=

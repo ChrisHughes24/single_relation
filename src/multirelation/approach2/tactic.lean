@@ -119,7 +119,6 @@ do u ← mk_meta_univ,
    infer_type G >>= unify (expr.sort (level.succ u)),
    u ← get_univ_assignment u,
    ic ← mk_instance_cache G,
-   zc ← mk_instance_cache `(ℤ),
    fsl ← mk_free_group_simp_lemmas,
    -- (ic, esl) ← mk_eval_simp_lemmas ic,
    using_new_ref ic $ λ ric,
@@ -244,8 +243,8 @@ meta def make_proof_eq_one_expr
 | (p::l) :=
   do pr ← make_proof_eq_one_expr l,
   c ← get_cache,
-  let word₁ := p.old_word.take p.word_start_index,
-  let word₂ := p.old_word.drop p.word_start_index,
+  let word₁ := p.old_word.take p.word_letter_index,
+  let word₂ := p.old_word.drop p.word_letter_index,
   let rel := cond p.rel_is_inv
     (rels.read' p.rel_index)
     (rels_inv.read' p.rel_index),
@@ -558,7 +557,7 @@ do
   tactic.apply eq_of_eval_eq_one,
   (hyps, tgt) ← perform_substs atoms (hyps ++ pow_comm_proofs) tgt,
   trace (pow_comm_proofs.map prod.fst),
-  solution ← solve (hyps.map prod.fst) tgt a.size,
+  solution ← timetac "solve time " (solve (hyps.map prod.fst) tgt a.size),
   let path := trace_path solution.2,
   tactic.trace ("path length = " ++ repr path.length),
   tactic.trace atoms,

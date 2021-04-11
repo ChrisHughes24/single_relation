@@ -1,7 +1,8 @@
 import .tactic
 
 set_option profiler true
-variables {G : Type*} [group G]
+
+variables {G : Type} [group G]
   (a b c d e f g h i j k l m n o p q r s t u v w x y z : G)
 
 lemma test1
@@ -60,10 +61,19 @@ begin
   { group_rel [h, ih] },
 end
 
+lemma test5 (h : a * b = b ^ 2 * a) (n : ℕ) :
+  a ^ n * b * a ^ (-n : ℤ) * b = b * a ^ n * b * a ^ (-n : ℤ) :=
+begin
+  induction n with n ih,
+  { group_rel [h] },
+  { group_rel [h, ih] },
+end
+
+#print test4
 lemma test6 (h : ∀ g : G, g ^ 2 = 1) : a * b = b * a :=
 by group_rel [h a, h b, h (a * b)]
 
-lemma test7a (h : a * b = b * a) : a^10 * b^10 * a^10 = b^9 * a^20 * b :=
+lemma test7a (h : a * b = b * a) : a^5 * b^5 = b^5 * a^5 :=
 by group_rel [h]
 
 lemma test7b (h : a * b = b * a) : a^1 * b^2*a^1 = b^ 1* a^2 * b :=
@@ -77,3 +87,7 @@ by group_rel []
 
 lemma test9 (h : a * b * a * b * b = 1) : a * b = b * a :=
 by group_rel [h]
+
+lemma test10 (h1 : a * b * a = b⁻¹ * c) (h2 : b * a * c^2 * b * a^2 = 1) :
+  a * b = b * a :=
+by group_rel [h1, h2]
