@@ -12,14 +12,18 @@
 % This is a simple template for a LaTeX document using the "article" class.
 % See "book", "report", "letter" for other types of document.
 
-\documentclass[11pt]{article} % use larger type; default would be 10pt
+\documentclass[12pt]{article} % use larger type; default would be 10pt
 
+\usepackage{longtable}
+\usepackage{booktabs}
 \usepackage{xargs}
-\usepackage{todonotes}
 \usepackage{xparse}
 \usepackage{xifthen, xstring}
 \usepackage{ulem}
 \usepackage{xspace}
+\usepackage{multirow}
+\setlength {\marginparwidth }{2cm}
+\usepackage{todonotes}
 \bibliographystyle{amsalpha}
 \makeatletter
 \font\uwavefont=lasyb10 scaled 652
@@ -30,7 +34,7 @@
 \DeclareMathAlphabet      {\mathsf}{OT1}{cmss}{m}{n}
 \DeclareMathAlphabet      {\mathit}{OT1}{cmr}{m}{it}
 \DeclareMathAlphabet      {\mathtt}{OT1}{cmtt}{m}{n}
-\newcommand\colorwave[1][blue]{\bgroup\markoverwith{\lower3\p@\hbox{\uwavefont\textcolor{#1}{\char58}}}\ULon}
+%% \newcommand\colorwave[1][blue]{\bgroup\markoverwith{\lower3\p@\hbox{\uwavefont\textcolor{#1}{\char58}}}\ULon}
 % \makeatother
 
 % \ifx\paperversion\paperversiondraft
@@ -45,13 +49,6 @@
 % \fi
 
 
-% \createtodoauthor{chris}{red}
-% \createtodoauthor{tobias}{blue}
-% \createtodoauthor{authorThree}{green}
-% \createtodoauthor{authorFour}{orange}
-% \createtodoauthor{authorFive}{purple}
-
-
 %%% Examples of Article customizations
 % These packages are optional, depending whether you want the features they provide.
 % See the LaTeX Companion or other references for full information.
@@ -59,22 +56,13 @@
 %%% PAGE DIMENSIONS
 \usepackage{geometry} % to change the page dimensions
 \geometry{a4paper} % or letterpaper (US) or a5paper or....
-\geometry{margin=1in} % for example, change the margins to 2 inches all round
+\geometry{margin=1.05in} % for example, change the margins to 2 inches all round
 % \geometry{landscape} % set up the page for landscape
 %   read geometry.pdf for detailed page layout information
 
 \usepackage{graphicx} % support the \includegraphics command and options
 
 % \usepackage[parfill]{parskip} % Activate to begin paragraphs with an empty line rather than an indent
-
-% Broaden margins to make room for todo notes
-\ifx\paperversion\paperversiondraft
-  \paperwidth=\dimexpr \paperwidth + 6cm\relax
-  \oddsidemargin=\dimexpr\oddsidemargin + 3cm\relax
-  \evensidemargin=\dimexpr\evensidemargin + 3cm\relax
-  \marginparwidth=\dimexpr \marginparwidth + 3cm\relax
-  \setlength{\marginparwidth}{4cm}
-\fi
 
 \usepackage[utf8x]{inputenc}
 \usepackage{amssymb}
@@ -87,7 +75,6 @@
 \definecolor{commentcolor}{rgb}{0.4, 0.4, 0.4}   % grey
 \definecolor{symbolcolor}{rgb}{0.0, 0.1, 0.6}    % blue
 \definecolor{sortcolor}{rgb}{0.1, 0.5, 0.1}      % green
-
 \usepackage{listings}
 
 
@@ -106,9 +93,9 @@
 
 %%% HEADERS & FOOTERS
 \usepackage{fancyhdr} % This should be set AFTER setting up the page geometry
-\pagestyle{fancy} % options: empty , plain , fancy
+\pagestyle{fancy}
 \renewcommand{\headrulewidth}{0pt} % customise the layout...
-\lhead{}\chead{}\rhead{}
+\lhead{\leftmark}\chead{}\rhead{\rightmark}
 \lfoot{}\cfoot{\thepage}\rfoot{}
 
 %%% SECTION TITLE APPEARANCE
@@ -141,7 +128,7 @@
 \theoremstyle{definition}
 \newtheorem{subdef}{Definition}[theorem]
 \newtheorem{exmpl}{Example}[theorem]
-
+\usepackage{lscape}
 \usepackage{hyperref}
 
 %%% END Article customizations
@@ -150,22 +137,27 @@
 
 \title{A Lean tactic to solve the word problem in One Relator Groups}
 \author{Christopher Hughes}
+
 \begin{document}
 
 \maketitle
+CID 01360659 \newline
+Supervised by Kevin Buzzard
 \pagebreak
 \tableofcontents
 \pagebreak
 
 \section{Introduction}
-% This paper describes an implementation of Magnus' method for solving the
-% word problem in one-relator groups \cite{mccool_schupp_1973}\cite{PutmanOneRelator}.
-% This implementation is used as part of a Lean tactic to prove equalities in groups
-% given a single equality as a hypothesis; for example, it might prove that $abab^2 = 1$ implies $ab = ba$.
 
 This paper describes two methods for automating proofs of equalities in groups, given
 a number of equalities as hypotheses. The first section describes Magnus' method
 \cite{mccool_schupp_1973}, which decides the word problem in one-relator groups.
+This method was first described by Wilhelm Magnus in 1932 (proper citation). Given a word in
+a free group, the "relator", it will decide whether any other word is in the
+normal subgroup containing this word. This is equivalent to deciding first order
+formulas in the language of groups of the form $t_1 = t_2 \implies t_3 = t_4$,
+where the $t_i$ are all terms in the language of groups.
+I am not aware of any other implementation of this method on a computer.
 
 The second method is capable of using more than one equality as a hypothesis,
 with the caveat that it may not terminate if the equality it is asked to prove is false.
@@ -177,9 +169,8 @@ terminate when an equality does not follow from the hypotheses.
 In order to be used as part of a Lean tactic, the implementation of the
 algorithm must not only decide the problem, but also produce a proof certificate
 that can be converted into a Lean proof to be checked by Lean's kernel. The Lean
-tactic can prove that two words in a one relator group are equal, but not that they are unequal.
-
-
+tactic can prove that two words in a one relator group are equal,
+but not that they are unequal.
 
 \section{Introduction to Lean}
 
@@ -346,9 +337,18 @@ To solve the second goal, the \lstinline{group_rel} tactic described later in th
 
 \section{Magnus' Method}
 
-This section starts by defining and stating a few important results about both
-HNN extensions and free groups. Next, the proof certificate is described, and then
-the algorithm is described along with how to generate the proof certificates.
+This section starts by defining and stating a few important definitions and results about both
+HNN extensions and free groups.
+
+The tactic for solving this method is split into three stages. Firstly, the Lean tactic state
+is converted into a word problem on an efficient representation of the free group. The tactic must
+compute the relator and the target word based on the tactic state. This process is very similar
+for both tactics described in this paper and is described in Section \ref{tacdescript}. Then
+the problem is solved using an efficient representation of the free group, and a proof certificate
+is computed. We call the function that performs this part $\textit{Solve}$.
+ The proof certificate is not a Lean proof, but does contain enough information
+about the solution to be able to be used to compute a formal Lean proof. This certificate is
+described in Section \ref{proofcert}.
 
 \subsection{Free Group}
 
@@ -397,6 +397,8 @@ an isomorphism between two subgroups.
   of $G$ and $\langle t \rangle$ quotiented
   by the normal closure of the set $\{ta t^{-1} \phi(a^{-1}) | a \in A\}$
 \end{defn}
+
+The map from $G$ into the HNN extension is injective. TO DO citation.
 
 \begin{defn}[HNN normal form]\label{HNNnormalform}
   Let $w = g_0t^{k_1}g_1t^{k_2}g_2 \cdots t^{k_n}g_n \in G \ast \langle t \rangle$.
@@ -478,7 +480,7 @@ $\text{lhs}(p) \equiv \text{rhs}(p) \text{ mod } r$.
 \end{subdef}
 
 One way of expressing this is that the group $G / r$ is the coequalizer of
-the two surjective maps lhs and rhs
+the two surjective maps lhs and rhs.
 
 \begin{tikzcd}
   P(G) \arrow[rr, "lhs"', shift right] \arrow[rr, "rhs", shift left] &  & G \arrow[r] & G/r
@@ -521,7 +523,6 @@ and vice versa, but this is not used in the algorithm.
 \end{subdef}
 
 \subsubsection{Performance}
-
 
 The representation of $F(F(S))$ can be improved. The automorphism $MulFree$ multiplies
 every letter in a word by another word. The consequence is that many of the words in
@@ -592,8 +593,8 @@ element in the list need be changed.
   \begin{cases}
     \text{MulFree}(w)(1) := 1 \\
     \text{MulFree}(w)((g_1, 1, s_1), \dots ,(g_k, n_k, s_k)) := (wg_1, 1, s_1), \dots, (g_k, n_k, s_k)\\
-    \text{MulFree}((g_1, 1, s_1),\dots ,(g_k, n_k, s_k)) :=
-    (wg_1, 1, s_1),(g_1, n_1 - 1, s_1),\dots,(g_k, n_k, s_k) & \text{if }n_1 > 1
+    \text{MulFree}(w)((g_1, n_1, s_1),\dots ,(g_k, n_k, s_k)) := \\
+     \ \ \ \ \ \ (wg_1, 1, s_1),(g_1, n_1 - 1, s_1),\dots,(g_k, n_k, s_k) & \text{if }n_1 > 1
   \end{cases}
 \end{equation}
 
@@ -603,7 +604,7 @@ We can now define a reduction map to eliminate pairs of the form
  $(g_i, n_i, s_i)(1, n_{i+1}, -s_i)$.
 \begin{defn}[Reduce]
   Reduce eliminates pairs of this form in a sequence with some rewriting rules.
-  In this definition $S$ is some finite sequence.
+  In this definition $S$ is some finite sequence of triples.
   \begin{equation}
     \begin{cases}
     (g_i, 1, s_i), (1, 1, -s_i), S \to \text{MulFree}(g_i)(S) \\
@@ -613,7 +614,7 @@ We can now define a reduction map to eliminate pairs of the form
       (g_i, 1, -s_i), (1, n_{i+1} - 1, -s_i) &\text{if } n_{i+1} > 1 \\
     (g_i, n_i, s_i), (1, n_{i+1}, -s_i) \to
     (g_i, n_i - 1, s_i), (g_i, 1, -s_i), (1, n_{i + 1}, -s_i) &
-      \text{if } n_i > 1\text{ and } n_{i+1} > 1
+      \text{if } n_i, n_{i+1} > 1
     \end{cases}
   \end{equation}
   % \begin{cases}
@@ -654,11 +655,11 @@ We can now define a reduction map to eliminate pairs of the form
 Multiplication can be defined on this representation.
 For a finite sequence
 \begin{equation}
-  S := (g_1, n_1, s_1), \dots, (g_k, n_k, s_k)
+  L := (g_1, n_1, s_1), \dots, (g_k, n_k, s_k)
 \end{equation}
 define
 \begin{equation}
-  p(S) := \prod_{i=1}^k g_i
+  p(L) := \prod_{i=1}^k g_i
 \end{equation}
 
 For a pair of sequence $S$ and $T$ use the notation $S,T$ to append the sequences.
@@ -715,15 +716,17 @@ exponents of $t$ in $w$ is zero, meaning the result will always be of the form
 $(w', 0_{\mathbb{Z}})$.
 
 \begin{defn}[RemoveSubscripts]
-  RemoveSubscripts sends a basis element of $F(S\times \mathbb{Z})$,  $(s, n) \in S\times \mathbb{Z},$
+  RemoveSubscripts sends a basis element of \newline $F(S\times \mathbb{Z})$,  $(s, n) \in S\times \mathbb{Z}$,
   to $t^n s t^{-n}$.
 \end{defn}
-RemoveSubscripts is a group homomorphism and if $r$ is a word such that $\text{AddSubscripts}(r)$ is of the form $(r', 0_\mathbb{Z})$,
+RemoveSubscripts is a group homomorphism and if $r$ is a word such that \newline
+$\text{AddSubscripts}(r)$ is of the form $(r', 0_\mathbb{Z})$,
 then $\text{RemoveSubscripts}(r')=r$.
 
 \subsection{Overview of The Method}
 
-Given an element $w \in F(S)$ of a free group, a relation $r$ in the free group, and a subgroup of the free group
+Given an element $w \in F(S)$ of a free group,
+a relation $r$ in the free group, and a subgroup of the free group
 generated by a set of letters $T$,
 we write $\overline {w}$ for the corresponding element in $F(S) / r$
 and $\overline{T}$ for the image of the subgroup generated by $T$ in $F(S)/r$.
@@ -742,8 +745,6 @@ without returning anything if there is no such word.
 Without loss of generality we can assume $r$ is cyclically reduced and
 conjugate $r$ if this is not the case. We can use $\text{ChangeRel}$,
 to make the correct proof certificate after conjugating $r$.
-
-
 
 \subsubsection{Case 1: All letters in r are in T}\label{allinT}
 For this case it is helpful to consider the group $F(S)$ as the
@@ -822,7 +823,7 @@ We then apply the HNN normalization procedure, which will be described in detail
 
 In either case, if $\overline{w}$ can be written as a word in $T$,
 then an HNN normal form of $w$ will be of the form $g t^n$
-with $g \in F(S') / r'$. In the case $x \notin T$, then because any word in
+with $g \in F(S') / r'$. In the case $x \notin T$, then this is because any word in
 $F(S')$ not containing $x_i$ must be in $A \cap B$, there can be no occurrence of
 $tg$ with $g \notin A$ or $t^{-1}g.$
 If $t \notin T$, then it must be possible to write $w$ without $t$, so in fact it can be normalized
@@ -1043,7 +1044,7 @@ Similarly, for each occurrence of $t^{-1}p$ where $\overline{\text{rhs}(p)} = \o
 some $b \in B$ and $q$ is a certificate of this equality,
 replace $t^{-1}p$ with $\text{ConjP}(-1, \text{Trans}(p, q))t^{-1}$
 
-\subsubsection{Performance}
+\subsubsection{Performance}\label{HNNperf}
 
 The order in which the rewriting rules are applied can have a big effect on the performance
 of the algorithm.
@@ -1073,7 +1074,7 @@ given an easier problem.
 
 \begin{exmpl}\label{rtlbad}
 Consider the word $tw_0t^{-1}w_1$ with $w_0, w_1 \in F(S')$. In this situation
-it is best to start by attempting to prove $\overline{w_0} \in \overline{A}$ in the quotient.
+it is best to start by attempting to prove $\overline{w_0} \in \overline{A}$.
 Applying the left hand rewrite first will put the word into HNN normal form
 straight away; it will not be necessary to check $\overline{w_1} \in \overline{B}$.
 
@@ -1354,7 +1355,7 @@ is still not possible here so none should be attempted.
 % will make words longer, and so the left to right normalization produces shorter proofs.
 % The left to right normalization was found to produce shorter proofs in practice.
 
-\subsection{Shortening Proofs}
+\subsection{Shortening Proofs}\label{golfsec}
 
 Most of the tactic execution time is spent generating and checking the Lean proof,
 and not on generating the proof certificate described in Section \ref{proofcert}.
@@ -1626,6 +1627,13 @@ $\psi_2(\text{Eval}(r)(F(\text{PowProof})(p)) =
   to convert various Lean tactic states into a form that can be tackled by
   the solver.
 
+  Just as was the case with the tactic for Magnus' Method, the tactic has two parts,
+  a solver that determines whether a word is in the normal closure of a set of relators,
+  and uses a more efficient representation of elements of the free group, and keeps track
+  of some sort of proof certificate, and a Lean tactic that translates a Lean tactic state
+  into a problem about elements in the efficient representation of the free group, and
+  writes a formal Lean proof of the result using the certificate.
+
 \subsection{Substitution heuristic}\label{subst}
   Sometimes it happens that it is very straightforward to eliminate a variable.
   For example, if one of the relators has exactly one occurence of one of the
@@ -1773,7 +1781,7 @@ inserting some conjugate of \begin{lstinline}!rel!\end{lstinline} in between
 \begin{lstinline}!word₁!\end{lstinline} and \begin{lstinline}!word₂!\end{lstinline},
 and then conjugating the result as well.
 
-\section{The Tactic}
+\section{The Tactic}\label{tacdescript}
 
 The practical problems that might come up in Lean proofs sometimes are not already in
 exactly the form that can be solved by the algorithm described, and some work
@@ -1881,21 +1889,204 @@ Note that this stage will be invisible to the user of the tactic.
 
 Now it is easier to identify the atoms, since \begin{lstinline} !a ^ ↑n! \end{lstinline}
 appears in exactly the same form wherever it appears, and similarly, \begin{lstinline} !b ^ ↑((1 + 1) ^ n)!
-\end{lstinline} appears as the exact same expression each time it appears.
-
+\end{lstinline} appears as the exact same expression each time it appears. It is
+now easy to automatically convert it to the problem in Equation \ref{problem}.
 \section{Comparison of Methods}
 
+In this section we compare the two methods,
+Magnus' method and the graph search
+method. We also compare two different superposition provers,
+one implemented in Lean called \lstinline{super}, and another much more optimised
+one called SPASS, which does not produce a proof verifiable by Lean.
 
+A superposition is a more general automated theorem prover than either of the two methods
+described above; it is a general purpose first order logic prover. In order to use these provers
+the problems must be stated in a slighty different form to have reasonable performance.
+As an example, the problem of checking if $a$ is in the normal closure of the
+relators $aba^{-1}b^{-2}$ and $bab^{-1}a^{-2}$, would be written in the following form.
+We assume we have four unary function symbols in our first order language,
+$a$, $b$, $a'$ and $b'$, and we give the prover the following problem to prove. In
+this format, there is no need to explicitly apply the associativity law, which
+leads to a large performance improvement. The \lstinline{super} tactic cannot solve
+even quite straightforward problems without stating them in the form below.
+
+\begin{equation}
+  \begin{aligned}
+  \forall x, a (a' (x)) = x \\
+  \forall x, a' (a (x)) = x \\
+  \forall x, b (b' (x)) = x \\
+  \forall x, b' (b (x)) = x \\
+  \forall x, a(b(a'(b'(b'(x))))) = x \\
+  \forall x, b(a(b'(a'(a'(x))))) = x \\
+  \vdash \forall x, a(x) = x
+  \end{aligned}
+\end{equation}
+
+It is important to note that this is a comparison of one implementation
+of Magnus' method, and that other implementations that use the optimizations for the HNN
+normalization procedure described in Section \ref{HNNperf} may perform much better on
+particular examples. The implementation of Magnus' method that
+we are comparing here uses a simple left to right HNN normalization
+procedure, where the leftmost possible rewrite is always attempted first.
+
+Both tactics work in two stages, one stage solves the word problem, and a second stage
+to produce and check the formal Lean proof. For the best comparison of the two
+methods, it is best not to include the time taken to write and check a Lean proof,
+since this takes a lot of the time, and the differences in performance are not a reflection
+of the merits of one method over another, but instead reflect two different methods
+to produce a Lean proof. Both times are included in the table below however, the "solver
+time" is the time taken excluding the proof writing and checking time, and
+the "tactic time" is the total time taken to execute the tactic. For the superposition
+provers, the time taken for the \lstinline{super} tactic to prove a problem is best compared
+with the tactic execution time of the two methods described in this paper, whilst
+the time taken by SPASS is best compared with the "solver" time for the two methods described in
+this paper.
+
+For both methods we include the length of the solution found. For Magnus'
+method this means the length of the word in $F(F(S))$ which is computed as the certificate.
+For the graph search method, this means the number of substitutions required
+in the proof.
+We also include the tree size for the graph search method, which is the
+size of the set $L$ at the end of the computation.
+\pagebreak
+\begin{landscape}
+% Please add the following required packages to your document preamble:
+% \usepackage{multirow}
+% \usepackage{longtable}
+% Note: It may be necessary to compile the document several times to get a multi-page table to line up properly
+\begin{longtable}[!h]{l|l|l|lll|llll|l|l}
+  \hline
+  \multirow{2}{*}{Label} & \multirow{2}{*}{Relators} & \multirow{2}{*}{Word} & \multicolumn{3}{l|}{Magnus' method} & \multicolumn{4}{l|}{Graph search method} & super & SPASS \\ \cline{4-12}
+   &  &  & Tactic & Solver & Length & Tactic & Solver & Length & Tree & Tactic & Solver \\ \hline
+  \endhead
+  %
+  \multirow{6}{*}{1} & \multirow{6}{*}{$abab$} & $babab^{-1}a^{-1}b^{-1}a^{-1}$ & 326ms & 1ms & 2 & 673ms & 1ms & 2 & 4 & 369ms & 20ms \\
+   &  & \$(baba)\textasciicircum{}4 & 337ms & 6ms & 4 & 782ms & 6ms & 4 & 4 & 683ms & 20ms \\
+   &  & $(b^{-1}a^{-1}b^{-1}a^{-1})^4$ & 514ms & 1ms & 4 & 594ms & 5ms & 4 & 4 & 1.29s & 20ms \\
+   &  & $(baba)^{10}$ & 669ms & 2ms & 10 & 1.73s & 31ms & 10 & 10 & \textgreater{}600s & 20ms \\
+   &  & $(baba)^{100}$ & 4.26s & 10ms & 100 & 66.2s & 1.54s & 100 & 100 &  & 30ms \\
+   &  & $(baba)^{200}$ & 5.23s & 19ms & 200 & 436s & 6.61s & 200 & 200 &  & 60ms \\ \hline
+  \multirow{4}{*}{2} & \multirow{4}{*}{$aba^{-1}b^{-2}$} & $aba^{-1}bab^{-1}a^{-1}b^{-1}$ & 390ms & 2ms & 2 & 577ms & 64ms & 2 & 20 & 1.32s & 20ms \\
+   &  & $a^2ba^{-2}ba^2b^{-1}a^{-2}b^{-1}$ & 324ms & 6ms & 6 & 529ms & 20ms & 6 & 91 & 5.17s & 20ms \\
+   &  & $a^5ba^{-5}ba^5b^{-1}a^{-5}b^{-1}$ & 5.14s & 141ms & 62 & 5.60s & 3.89s & 70 & 20193 & \textgreater{}600s & 90ms \\
+   &  & $a^9ba^{-9}ba^9b^{-1}a^{-9}b^{-1}$ &  & 920ms & 1022 &  &  &  &  &  & 160s \\ \hline
+  \multirow{3}{*}{3} & \multirow{3}{*}{$(ac)b(ac)^{-1}b^{-2}$} & $acb(ac)^{-1}bacb^{-1}(ac)^{-1}b^{-1}$ & 180ms & 4ms & 2 & 277ms & 2ms & 2 & 20 & 3.3s & 20ms \\
+   &  & $(ac)^2b(ac)^{-2}b(ac)^2b^{-1}(ac)^{-2}b^{-1}$ & 420ms & 7ms & 6 & 775ms & 13ms & 6 & 90 & 7.1s & 20ms \\
+   &  & $(ac)^5b(ac)^{-5}b(ac)^5b^{-1}(ac)^{-5}b^{-1}$ & 4.97s & 57ms & 62 & 4.06s & 1.28s & 62 & 6338 & \textgreater{}600s & 40ms \\ \hline
+  \multirow{2}{*}{4} & \multirow{2}{*}{\begin{tabular}[c]{@{}l@{}}$aba^{-1}b^{-2}$,\\ $bca^{-1}$\end{tabular}} & $aba^{-1}bab^{-1}a^{-1}b^{-1}$ & \multicolumn{3}{c|}{\multirow{2}{*}{NA}} & 297ms & 2ms & 2 & 24 & 13.8s & 20ms \\
+   &  & $a^2ba^{-2}ba^2b^{-1}a^{-2}b^{-1}$ & \multicolumn{3}{c|}{} & 490ms & 19ms & 6 & 100 & 45.5s & 20ms \\ \hline
+  \multirow{3}{*}{5} & \multirow{3}{*}{$aba^{-1}b^{-1}$} & $a^2b^2a^{-2}b^{-2}$ & 413ms & 13ms & 4 & 366ms & 6ms & 4 & 34 & 446ms & 20ms \\
+   &  & $a^5b^5a^{-5}b^{-5}$ & 1.45s & 69ms & 25 & 1.14s & 100ms & 25 & 604 & 1.14s & 20ms \\
+   &  & $a^{10}b^{10}a^{-10}b^{-10}$ & 4.21s & 110ms & 100 & 5.83s & 1.35s & 100 & 5314 & 106s & 30ms \\ \hline
+  \multirow{3}{*}{6} & \multirow{3}{*}{$acb(ac)^{-1}b^{-1}$} & $(ac)^2b^2(ac)^{-2}b^{-2}$ & 215ms & 5ms & 4 & 339ms & 4ms & 4 & 34 & 3.34s & 20ms \\
+   &  & $(ac)^5b^5(ac)^{-5}b^{-5}$ & 1.16s & 33ms & 25 & 1.17s & 96ms & 25 & 604 & 8.91s & 20ms \\
+   &  & $(ac)^{10}b^{10}(ac)^{-10}b^{-10}$ & 4.32s & 92ms & 100 & 7.95s & 1.16s & 100 & 5314 & MEM & 20ms \\ \hline
+  7 & $aba^{-3}b^4$ & $a^2baba^{-3}b^3a^{-2}b^{-4}a^{3}b^{-1}a^{-1}$ & 689ms & 359ms & 2 & 329ms & 12ms & 2 & 86 & 12.8s & 30ms \\ \hline
+  8 & $aba^{-11}b^4$ & $a^{10}baba^{-11}b^3a^{-10}b^{-4}a^{11}b^{-1}a^{-1}$ & 1.42s & 768ms & 2 & 782ms & 56ms & 2 & 230 & \textgreater{}600s & 20ms \\ \hline
+  9 & $aba^{-1}b^{-3}$ & $a^4baba^{-1}b^{-4}a^{-3}ba^{-1}b^{-3}$ & 11.1s & 67ms & 80 & 439ms & 6ms & 2 & 52 & 327ms & 20ms \\ \hline
+  10 & \begin{tabular}[c]{@{}l@{}}$aba^{-1}b^{-2}$,\\ $bab^{-1}a^{-2}$\end{tabular} & $a$ & \multicolumn{3}{c|}{NA} & 337ms & 215ms & 5 & 1368 & 4.67s & 30ms \\ \hline
+  11 & \begin{tabular}[c]{@{}l@{}}$aca^{-1}c^{-1}$,\\ $bdb^{-1}d^{-1}$,\\ $aba^{-1}b^{-2}$,\\ $cbc^{-1}d^{-1}$\end{tabular} & $acbc^{-1}a^{-1}d^{-2}$ & \multicolumn{3}{c|}{NA} & 492ms & 13ms & 3 & 120 & MEM & 30ms \\ \hline
+  12 & \begin{tabular}[c]{@{}l@{}}$aca^{-1}c^{-1}$,\\ $b^2d^2b^{-2}d^{-2}$,\\ $ab^2a^{-1}b^{-4}$,\\ $cb^2c^{-1}d^{-2}$\end{tabular} & $acb^2c^{-1}a^{-1}d^{-4}$ & \multicolumn{3}{c|}{NA} & 1.50s & 61ms & 5 & 216 & 25.9s & 20ms \\ \hline
+  13 & \begin{tabular}[c]{@{}l@{}}$aca^{-1}c^{-1}$,\\ $c^{-1}dcdc^{-1}d^{-1}cd^{-1}$,\\ $ac^{-1}dca^{-1}c^{-1}d^{-2}c$\end{tabular} & $ada^{-1}d^{-2}$ & \multicolumn{3}{c|}{NA} & 570ms & 15ms & 3 & 120 & 18.7s & 20ms \\ \hline
+  14 & \begin{tabular}[c]{@{}l@{}}$aca^{-1}c^{-1}$,\\ $aba^{-1}b^{-2}$,\\ $cbc^{-1}bcb^{-1}c^{-1}b^{-1}$\end{tabular} & $acbc^{-1}a^{-1}bacb^{-1}c^{-1}a^{-1}b^{-1}$ & \multicolumn{3}{c|}{NA} & 502ms & 34ms & 8 & 354 & 35.9s & 30ms
+  \label{tab:my-table}\\
+  \end{longtable}
+\end{landscape}
+\pagebreak
+
+For problems where the single relator is of the form $r^n$, where
+$r$ is a word in the free group, and $n > 1$, then both methods perform
+very well. There is a theorem (proper citation) that says that
+these problems can be solved whilst only performing rewrites that
+make the word shorter. Neither method will perform a rewrite that
+makes the word longer on these problems, so both perform well. The table
+above shows the performance of each algorithm for the relator $abab$,
+labelled 1 in the table.
+Magnus' method appears to be linear time on these problems, whereas
+the graph search method is not. To prove $(baba)^n = 1$, will require
+$n$ steps and at each step the number of rewrites the algorithm
+will add to the graph will be proportional to the length of the graph,
+so one would expect at least quadratic time. The overall tree size
+is small because most of the words added to the graph will
+be duplicates of words already in the graph. The \lstinline{super} tactic performed particularly
+badly here, which is surprising given how easy it is to simplify some of the words.
+
+The next problem we compare, is given the relator $ab = b^2a$,
+prove that $a^nba^{-n}b = ba^nba^{-n}$ for various different values of $n$.
+The reason this is true is
+because in this particular group, $a^n b a^{-n} = b^{2^n}$, and therefore
+$a^n b a^{-n}$ must commute with $b$. Therefore, in order to prove the result,
+the graph search method must perform rewrites that make the word longer,
+whereas it aims to make words shorter, and will only perform rewrites that
+make a word longer after having exhausted all rewrite sequences that
+do not make the word longer. So one would expect the graph search method to perform
+poorly on these problems, and this is corroborated by the data, particularly the solve time,
+although the overall tactic execution time is similar. The superposition provers both performed
+badly on this problem as well, this was the only problem where either of my algorithms outperformed
+SPASS, since Magnus' method was much faster for large values of $n$.
+
+I also experimented with the same relation but changing each occurence of $a$ with $ac$.
+This worsened the performance of \lstinline{super}, perhaps because the extra letter $c$ necessitated the
+inclusion of two new function symbols, $c$ and $c'$, and two new equalities,
+$\forall x, c (c' (x)) = x$ and $\forall x, c' (c (x)) = x$ in the format that the problem
+is inputted to \lstinline{super}.
+
+I experimented here with using the same problem as above, with relator  $ab = b^2a$, and
+attempting to prove $a^nba^{-n}b = ba^nba^{-n}$, but adding an entirely superfluous
+relator $bca^{-1}$. This significantly damaged the performance of \lstinline{super}, but the performance
+of the graph search method was only slightly worse.
+
+We also compare the relator $aba^{-1}b^{-1}$ and words of the form $a^nb^na^{-n}b^{-n}$ for
+different values of $n$. For this problem Magnus' method has the edge although of course
+neither method is a sensible choice for this problem. Again, Magnus' method particularly
+outperforms the search method on the solve time, although overall tactic execution times are
+similar.
+
+The next three problems, labelled 7, 8 and 9, all have a very easy solution with only two
+subsitutions required. The problems labelled 8 and 9 are both problems where Magnus' method performs
+very badly.
+They both exhibit behaviour similar to the behaviour in Example \ref{ltrbad}. The graph search
+method is much faster on both of these examples, since they can both be done in just two
+substitutions, both of which make the word shorter. Note the difference in length between the
+solution found by Magnus' method in each of the final two problems. The first has length $80$,
+which is much longer than the minimum required to solve the problem, which is $2$.
+For the final problem it did find a solution of length $2$, but this was only after the golfing
+heuristics described in Section \ref{golfsec}. For this problem it initially found a certificate
+of length $36$, before the golfing code shortened it. Surprisingly, \lstinline{super}
+performed extremely badly on problems 7 and 8, despite them only requiring two substitutions,
+both of which made the word much shorter.
+
+The final four problems are all related to the group with presentation
+$\langle a, b \ : ab = b^2a\rangle$. Problem 11 is the inductive step
+of the proof that $a^nb = b^{2^n}a$ in this group. \lstinline{super} failed to prove this
+within ten minutes. The graph search method was able to eliminate the variable
+$b$, and this may have given it an advantage over \lstinline{super}. Therefore problem 12
+is the same problem, but with every occurence of $b$ replaced with $b^2$ and
+with every occurence of $d$ replace with $d^2$. It is of course still possible
+to eliminate $b$ or $d$, but the algorithm does not attempt this when every occurence
+is a square. The graph search method still performed well on this problem, and
+surprisingly this change meant that \lstinline{super} was naw able to solve the problem, albeit
+very slowly. I also tried making it easier for \lstinline{super}, by eliminating $b$ before giving the problem
+to \lstinline{super} in the problem labelled 13. \lstinline{super} was then able to solve it.
+
+The final problem in the table is the inductive step of the proof that
+$a^nba^{-n}$ and $b$ commute in the group $\langle a, b \ : ab = b^2a\rangle$.
+The graph search method performs very well on this problem, but \lstinline{super} is slow.
+
+In conclusion, Magnus' method appears to be better than either the graph search method
+or \lstinline{super} on most one-relator problems. The problems where it performs badly are
+carefully constructed to exploit the weaknesses, and these weaknesses could be fixed
+by implementing the optimizations in Section \ref{HNNperf}. Magnus' method even
+outperforms SPASS on one problem, so there is weak evidence to suggest this method
+is overall faster than a superposition prover, especially considering that SPASS
+has had far more time invested in optimizing it than my implementation of Magnus'
+Method. However it is difficult to draw any firm conclusions because of the drastic variation
+in performance depending on the problem given. Both the graph
+search method and Magnus' method outperform \lstinline{super}.
 
 \section{To Do}
 \begin{itemize}
-  \item Comparison with Z3/sledgehammer whatever
-  \item Comparison of search method and one-relator method
-  \item No other implementations for Magnus' method
-  \item Mention that source that said Knuth Bendix was no good, maybe compare
-    other potential approaches
   \item Mention crappy justification for termination of search.
-  \item Mention injectivity of map into HNN. Is this actually needed?
   \item Mention stuff about proof by computation, e.g. the idea of
     proof by verified algorithm, pros, cons.
 \end{itemize}
