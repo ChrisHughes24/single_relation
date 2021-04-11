@@ -150,33 +150,35 @@ Supervised by Kevin Buzzard
 \section{Introduction}
 
 This paper describes two methods for automating proofs of equalities in groups, given
-a number of equalities as hypotheses. The first section describes Magnus' method
+a number of equalities as hypotheses. Section \ref{magnusmethod} describes Magnus' method
 \cite{mccool_schupp_1973}, which decides the word problem in one-relator groups.
 This method was first described by Wilhelm Magnus in 1932 (proper citation). Given a word in
-a free group, the "relator", it will decide whether any other word is in the
+a free group, the ``relator", it will decide whether any other word is in the
 normal subgroup containing this word. This is equivalent to deciding first order
 formulas in the language of groups of the form $t_1 = t_2 \implies t_3 = t_4$,
 where the $t_i$ are all terms in the language of groups.
 I am not aware of any other implementation of this method on a computer.
 
-The second method is capable of using more than one equality as a hypothesis,
+Section \ref{gsmethod} describes an alternative method for solving the word problem,
+which we call the ``Graph Search Method".
+This method is capable of using more than one equality as a hypothesis,
 with the caveat that it may not terminate if the equality it is asked to prove is false.
 It is a known result that the word problem for finitely presented groups is undecidable
 \cite{collins1986}, however it is semidecidable meaning that  there is an algorithm
 that will terminate with a proof whenever an equality is true, but will not necessarily
 terminate when an equality does not follow from the hypotheses.
 
-In order to be used as part of a Lean tactic, the implementation of the
-algorithm must not only decide the problem, but also produce a proof certificate
-that can be converted into a Lean proof to be checked by Lean's kernel. The Lean
-tactic can prove that two words in a one relator group are equal,
-but not that they are unequal.
+Both methods are implemented as tactics in the Lean proof assistant, meaning that
+they will produce a formal proof of the result capable of being checked by the Lean
+proof assistant.
 
 \section{Introduction to Lean}
 
-Lean \cite{de_moura_kong_avigad_van_doorn_von_raumer_2018} is a proof assistant; it is a language capable of expressing mathematical propositions
-and definitions, and also a language for writing formal proofs of these propositions which
-can then be checked by Lean's kernel. A formal proof checked by Lean's kernel provides
+Lean \cite{de_moura_kong_avigad_van_doorn_von_raumer_2018} is a proof assistant;
+it is a language capable of expressing mathematical propositions
+and definitions, and also a language for writing formal proofs of these propositions.
+A formal proof in Lean is checked for correctness by Lean's kernel.
+A formal proof checked by Lean's kernel provides
 an extremely high level of confidence in a checked proof, at the expense of requiring a lot
 of time for a user to write a proof in a completely formal language.
 
@@ -190,59 +192,197 @@ There is a large library of formal mathematics in Lean, called mathlib
 
 \subsection{Terms and Types}
 
-Lean is based on type theory, every expression has a type,
-including types themselves.
-The notation \lstinline{x : y} indicates that
-\lstinline{x} has type \lstinline{y}.
+Lean is based on type theory; there are terms and types, and every term has a type.
+In Lean, the syntax \lstinline{x : X} indicates that \lstinline{x} has type \lstinline{X}.
+Lean is based on type theory as opposed to set theory, so whilst on paper it might
+be more common to write $x \in X$, saying $x$ is an element of the set $X$, in Lean
+you would usually write \lstinline{x : X} in Lean instead.
+So for any syntactically correct expression we write down in Lean, that term has a type,
+and we use the colon \lstinline{:} to indicate the type of a term.
+\lstinline{Type} itself is also a type, so for example the real numbers are a type,
+so \lstinline{ℝ : Type},
+and if \lstinline{x} is a real number then \lstinline{x : ℝ} or \lstinline{x + 1 : ℝ}.
+Another very important type is the type of propositions \lstinline{Prop}. \lstinline{Prop}
+has type \lstinline{Type}.
 
-Lean makes use of the Curry Howard correspondence, every proposition is a type,
-and the inhabitants of the proposition can be thought of as proofs of the proposition.
-The main difference between propositions and other types, is that every element
-of a proposition is equal to itself.
+In Lean it is possible to make new types out of types. For example if \lstinline{X : Type}
+and \lstinline{Y : Type}, then \lstinline{X × Y : Type}; \lstinline{X × Y} is the cartesian
+product of the Types \lstinline{X} and \lstinline{Y}. Importantly you can also make the type
+of functions from \lstinline{X} to \lstinline{Y} using the arrow symbol,
+\lstinline{X → Y : Type}. If \lstinline{f : X → Y} and \lstinline{x : Y}, then
+\lstinline{f x : Y}, similar to how if $f : X \to Y$, then $f(x) \in Y$
+in more conventional notation.
 
-If $P$ and $Q$ are propositions and it is known that $P$ implies $Q$, and
-$P$ is true, then $Q$ is also true. T
+To define a binary function from a type \lstinline{X} to itself in Lean,
+it is possible to give it the type \lstinline{X × X → X}. However, this is not
+the most common way of defining binary functions, it is more common to use the
+canonically isomorphic type \lstinline{X → (X → X)}.
+This is called the curried form of the function. This type is usually written without
+brackets as \lstinline{X → X → X}, and this will be parsed by Lean as the type
+\lstinline{X → (X → X)}, brackets are automatically inserted to the right.
+Functions of higher arity can be defined similarly.
 
-By the Curry Howard correspondence, theorems can be regarded as functions, and the
-implication arrow \lstinline{→} is the same as the arrow defining function types.
+We can also make the type of dependent functions between sets,
+where the type of the output depends on the input. These are known as Pi types, and correspond
+to indexed products in more familiar language.
+If \lstinline{X : Type} and \lstinline{Y : X → Type}, then we can write
+\lstinline{Π i : X, Y i : Type}, and then if \lstinline{i : X},
+and \lstinline{f : Π i: X, Y x} then \lstinline{f i : Y i}.
+This corresponds to if $X$ is a set,
+and $(Y_i)_{i \in X}$ is a family of sets indexed by $X$, then
+$\Pi_{i \in X}, Y_i$ is the product of the $Y_i$, and if
+$f \in \Pi_{i \in X}, Y_i$, then you might write $f_i \in Y_i$.
 
-For example if \lstinline{X} and \lstinline{Y} are types, then
-\lstinline{f : X → Y} could be read as \lstinline{f} is a function from
-\lstinline{X} to \lstinline{Y}. But if \lstinline{X} and \lstinline{Y} are propositions,
-then \lstinline{f} is a proof that \lstinline{X} implies \lstinline{Y}.
+Finally we will introduce the lambda notation used to define functions. This
+is similar to the $\mapsto$ symbol in conventional maths. You can write
+\lstinline{λ x : ℝ, x + 1}, to define a function \lstinline{ℝ → ℝ},
+which corresponds to the function $x \mapsto x + 1$. To define a function
+in multiple variables, you can put two variables after the lambda, for example
+\lstinline{λ x y : ℝ, x + y} define a binary function with type \lstinline{ℝ → ℝ → ℝ}.
 
-Suppose \lstinline{X} and \lstinline{Y} are propositions, and we have \lstinline{x : X},
-and \lstinline{f : X → Y}, i.e. \lstinline{X} is true,
-and \lstinline{X → Y} is also true. Then by the modus ponens rule, we know \lstinline{Y}
-is also true. The proof of this, the term of type \lstinline{Y}, is simply \lstinline{f x}
-(Function application can be written without brackets in Lean).
-The same syntax would be used if \lstinline{X} and \lstinline{Y} were Types,
-then if \lstinline{x : X} and \lstinline{f : X → Y} then applying \lstinline{f}
-to \lstinline{x}, gives \lstinline{f x : Y}.
+\subsubsection{Propositions as Types}
 
-Similarly the forall quantifier corresponds to Pi-types, or the type of dependent functions,
-where the output type depends on the input to the function.
-For example if \lstinline{s : set ℕ} is a set of natural numbers,
-and \lstinline{h : ∀ x : ℕ, x ∈ s}, is a proof that every natural number is contained
-in this set, then this function applied at \lstinline{2} gives \lstinline{h 2 : 2 ∈ s},
-the proof in the special case when \lstinline{x} is \lstinline{2}. In fact the
-symbols \lstinline{∀} and \lstinline{Π} are interchangeable in Lean, it is only a
-convention that \lstinline{∀} should be used for propositions and \lstinline{Π} for types.
+We now give some examples of propositions and theorems.
 
-We have seen that the function arrow corresponds to the implication arrow. There
-are other correspondences between logical connectives, and operators for making types.
-For example logical "and", \lstinline{∧} corresponds to the product of types,
-logical "or" \lstinline{∨} correspond to the disjoint union or coproduct of types.
+\begin{lstlisting}
+  ∀ p q : Prop, p ∧ q → q ∧ p
+\end{lstlisting}
+
+The above proposition says that the ``and'' connective, \lstinline{∧}, is symmetric. Note that
+we use the same arrow as the function arrow, \lstinline{→}, for implication.
+
+Below is a proof of the above proposition.
+\begin{lstlisting}
+  λ (p q : Prop) (h : p ∧ q), and.intro (and.right h) (and.left h)
+\end{lstlisting}
+
+Note that we use the lambda notation that we used to define functions. This is because Lean
+makes use of the Curry-Howard correspondence. The proof of this theorem can in fact be
+regarded as a function. The function takes two propositions \lstinline{p} and \lstinline{q},
+and a proof of \lstinline{p ∧ q}, and returns a proof of \lstinline{q ∧ p}. The
+statement of the theorem is the type of the proof.
+
+Now consider the following definition of the function
+\lstinline{X × Y → Y × X} that swap the two elements. We want to define a function
+that works for any two types \lstinline{X} and \lstinline{Y}, not just defining it for
+a particular choice of types \lstinline{X} and \lstinline{Y}. Therefore, the
+function should take a pair of types as an input as well. The full type of this function
+is therefore
+
+\begin{lstlisting}
+  Π X Y : Type, X × Y → Y × X
+\end{lstlisting}
+
+Now we can define a function of this type.
+
+\begin{lstlisting}
+  λ (X Y : Type) (h : X × Y), prod.mk (prod.snd h) (prod.fst h)
+\end{lstlisting}
+
+Here, \lstinline{prod.mk} is the natural function of type \lstinline{Y → X → Y × X}.
+\lstinline{prod.snd} is the natural map \lstinline{X × Y → Y}, and \lstinline{prod.fst}
+is the natural map \lstinline{X × Y → X}.
+
+This function definition looks very similar to the proof of the proposition
+\lstinline{∀ p q : Prop, p ∧ q → q ∧ p}, and the type of the function
+looks very similar to the proposition itself. This is an example of the Curry Howard
+correspondence. \lstinline{∀} for propositions corresponds to \lstinline{Π} for types,
+logical and, \lstinline{∧}, corresponds to cartesian product, \lstinline{×}, and
+\lstinline{prod.mk}, \lstinline{prod.fst} and \lstinline{prod.snd} correspond to
+\lstinline{and.intro}, \lstinline{and.left} and \lstinline{and.right} respectively.
+
+This way the same syntax that can be used to define terms of types such as \lstinline{ℝ → ℝ}
+can also be used to write proofs of propositions, although proofs of propositions are usually
+far more complex than terms of other types.
+
+% \begin{lstlisting}
+%   ∀ (a b : ℤ), a * (1 + b) - a = a * b
+% \end{lstlisting}
+
+% Informally, in this statement, \lstinline{R} is a commutative ring.
+% \lstinline{R : Type}, means that \lstinline{R} is a \lstinline{Type}, or the type of \lstinline{R}
+% is \lstinline{Type}. \lstinline{a} and \lstinline{b} are elements of \lstinline{R}, so we write
+% \lstinline{a b : R}. We write \lstinline{[comm_ring R]} to state that \lstinline{R} is a commutative
+% ring. Strictly speaking \lstinline{comm_ring R} is the type of commutative ring structures on the
+% Type \lstinline{R}. Here we are quantifying over all commutative ring structures on \lstinline{R},
+% one way of reading this theorem would be: \textit{For all types R, and for any commutative ring
+% structure on R and for any a, b in R, $a(1+b) - a = a b$}.
+
+
+% \subsection{Terms and Types}
+
+% Lean is based on type theory, every expression has a type,
+% including types themselves.
+% The notation \lstinline{x : y} indicates that
+% \lstinline{x} has type \lstinline{y}.
+
+% Lean makes use of the Curry Howard correspondence, every proposition is a type,
+% and the inhabitants of the proposition can be thought of as proofs of the proposition.
+% The main difference between propositions and other types, is that all elements
+% of a proposition are equal.
+
+% If $P$ and $Q$ are propositions and it is known that $P$ implies $Q$, and
+% $P$ is true, then $Q$ is also true. T
+
+% By the Curry Howard correspondence, theorems can be regarded as functions, and the
+% implication arrow \lstinline{→} is the same as the arrow defining function types.
+
+% For example if \lstinline{X} and \lstinline{Y} are types, then
+% \lstinline{f : X → Y} could be read as \lstinline{f} is a function from
+% \lstinline{X} to \lstinline{Y}. But if \lstinline{X} and \lstinline{Y} are propositions,
+% then \lstinline{f} is a proof that \lstinline{X} implies \lstinline{Y}.
+
+% Suppose \lstinline{X} and \lstinline{Y} are propositions, and we have \lstinline{x : X},
+% and \lstinline{f : X → Y}, i.e. \lstinline{X} is true,
+% and \lstinline{X → Y} is also true. Then by the modus ponens rule, we know \lstinline{Y}
+% is also true. The proof of this, the term of type \lstinline{Y}, is simply \lstinline{f x}
+% (Function application can be written without brackets in Lean).
+% The same syntax would be used if \lstinline{X} and \lstinline{Y} were Types,
+% then if \lstinline{x : X} and \lstinline{f : X → Y} then applying \lstinline{f}
+% to \lstinline{x}, gives \lstinline{f x : Y}.
+
+% Similarly the forall quantifier corresponds to Pi-types, or the type of dependent functions,
+% where the output type depends on the input to the function.
+% For example if \lstinline{s : set ℕ} is a set of natural numbers,
+% and \lstinline{h : ∀ x : ℕ, x ∈ s}, is a proof that every natural number is contained
+% in this set, then this function applied at \lstinline{2} gives \lstinline{h 2 : 2 ∈ s},
+% the proof in the special case when \lstinline{x} is \lstinline{2}. In fact the
+% symbols \lstinline{∀} and \lstinline{Π} are interchangeable in Lean, it is only a
+% convention that \lstinline{∀} should be used for propositions and \lstinline{Π} for types.
+
+% We have seen that the function arrow corresponds to the implication arrow. There
+% are other correspondences between logical connectives, and operators for making types.
+% For example logical ``and", \lstinline{∧} corresponds to the product of types,
+% logical ``or" \lstinline{∨} correspond to the disjoint union or coproduct of types.
 
 \subsection{Tactics}
 
-Because of the difficulty of writing a formal proof in Lean directly, it is possible
-to write tactics in Lean. The tactic framework is a domain specific language for writing
-Lean expressions, which include Lean proofs. Tactics will return a Lean expression,
-which will then be checked by the Lean kernel. The tactic itself is not proven correct,
-it is possible that a tactic returns a proof that is not accepted by the Lean kernel.
+Now consider the following theorem called \lstinline{thm} and its proof.
 
-When using tactics to write a Lean proof, a tactic state is displayed to a user.
+\begin{lstlisting}
+theorem thm (a b : ℤ) : a * (1 + b) - a = a * b :=
+(mul_add a 1 b).symm ▸ (mul_one a).symm ▸ add_sub_cancel' a (a * b)
+\end{lstlisting}
+
+The proof of this theorem required explicitly invoking three elementary about commutative
+rings, the distibutivity law, the right multiplicative identity, and
+\lstinline{add_sub_cancel'}, which says that for any $x$ and $y$, $x + y - x = y$.
+Proving more complicated equalities of ring expressions can often require a huge
+number of explicit applications of elementary lemmas about rings. This is where Lean's
+tactic framework becomes useful. A tactic is a program that helps to generate Lean proofs. There is
+a tactic for proving equalities of ring expresions called \lstinline{ring}. Instead
+of the above proof, a Lean user could simply write
+
+\begin{lstlisting}
+theorem thm (a b : ℤ) : a * (1 + b) - a = a * b :=
+begin
+  ring
+end
+\end{lstlisting}
+
+The \lstinline{begin} and \lstinline{end} indicates that the user wants to use the tactic
+framework to generate a proof. Users can use more complicated combinations of tactics
+to prove a theorem. When using tactics to write a Lean proof, a tactic state is displayed to a user.
 This tactic state can be manipulated using tactics. An example of a tactic state is displayed
 below.
 
@@ -250,8 +390,8 @@ below.
 
 The code below is a statement of the theorem that if $G$ is a group, and
 $a, b ∈ G$ are such that $ab = b^2a$, then for any natural number $n$,
-$a^nba^{-n} = b^{2^n}$. Between the \lstinline{begin ... end}, the user can
-write tactics to produce a proof of the proposition.
+$a^nba^{-n} = b^{2^n}$. In between \lstinline{begin} and \lstinline{end} the user
+can write some tactics.
 
 \begin{lstlisting}
   example {G : Type} [group G] (a b : G) (h : a * b = b ^ 2 * a) (n : ℕ) :
@@ -274,7 +414,8 @@ If the user types the above code then the following tactic state is displayed to
 
 The turnstile \lstinline{⊢} indicates the current goal, the proposition the user
 is currently trying to prove. The preceding lines indicate the hypotheses and variables.
-\lstinline{G : Type} indicates that \lstinline{G} is a type. \lstinline{_inst_1} is a group structure on the Type \lstinline{G}.
+\lstinline{G : Type} indicates that \lstinline{G} is a type.
+\lstinline{_inst_1} is a group structure on the Type \lstinline{G}.
 A term of type \lstinline{group G}, is a tuple containing a binary operation on
 \lstinline{G}, an identity, and an inverse function, as well as proofs that these
 satisfy the group axioms. \lstinline{a} and \lstinline{b} are elements of
@@ -285,7 +426,7 @@ If the user writes a tactic, then the tactic state will change. If the user
 wanted to prove this by induction on \lstinline{n} they could write
 
 \begin{lstlisting}
-  induction n with k ih
+  induction n with k ih,
 \end{lstlisting}
 
 The tactic state after this line will now be
@@ -315,13 +456,13 @@ The tactic split the goal into two cases, in the first case, labelled \lstinline
 hypothesis \lstinline{ih} has been added.
 
 The user could then use the \lstinline{rw} tactic to solve the first goal,
-for example typing \lstinline{rw pow_zero} changes the goal to
+for example typing \lstinline{rw pow_zero} changes \lstinline{a ^ 0}
+to \lstinline{1} and the new goal after this line will be
 \begin{lstlisting}
   ⊢ 1 * b * a ^ -↑0 = b ^ 2 ^ 0
 \end{lstlisting}
 
-The \lstinline{a^0} has been substituted
-for \lstinline{1}; \lstinline{pow_zero} is the theorem that says if $a$ is an
+\lstinline{pow_zero} is the theorem that says if $a$ is an
 element of any monoid, then $a^0= 1$.
 
 To solve the first goal the \lstinline{simp} tactic can be used.
@@ -331,11 +472,12 @@ lemmas that are proofs of an equality where the right hand side is judged to be 
 than the left hand side. For example there is a lemma simplifying \lstinline{1 * a} to
 \lstinline{a}, or \lstinline{b ^ 1} to \lstinline{b}.
 
-To solve the second goal, the \lstinline{group_rel} tactic described later in this document can be used.
+To solve the second goal, the \lstinline{group_rel} tactic described
+later in this document can be used, and it will finish off the proof.
 
 \end{exmpl}
 
-\section{Magnus' Method}
+\section{Magnus' Method}\label{magnusmethod}
 
 This section starts by defining and stating a few important definitions and results about both
 HNN extensions and free groups.
@@ -1130,7 +1272,7 @@ Consider the following Example, a slight modification of Example \ref{ltrbad2}.
 
 \begin{exmpl}\label{ltrbad3}
     Suppose $r = txt^{-1}(xy)^{-2}$,
-    then $r' := \text{AddSubscript}(t)(r) = {x_1}(x_0y_0)^{-2}$ and
+    then \newline $r' := \text{AddSubscript}(t)(r) = {x_1}(x_0y_0)^{-2}$ and
     suppose $w = t^n x_1y_1 t (x_0y_0)^{-1}$, where $n > 0$.
 
     Suppose $S'$ is defined to be the set $\{x_0, x_1, y_0, y_1\}$.
@@ -1612,7 +1754,7 @@ $\psi_2(\text{Eval}(r)(F(\text{PowProof})(p)) =
   was that the algorithm should have good performance on relations with a small area,
   but makes no attempt to solve problems where the area of the relation is very large.
 
-\section{Graph Search Method}
+\section{Graph Search Method}\label{gsmethod}
 
   In this section we present an alternative method to solve word problems in groups.
   This method searches for a sequences of rewrites to prove an equality. This search will
@@ -1934,12 +2076,12 @@ to produce and check the formal Lean proof. For the best comparison of the two
 methods, it is best not to include the time taken to write and check a Lean proof,
 since this takes a lot of the time, and the differences in performance are not a reflection
 of the merits of one method over another, but instead reflect two different methods
-to produce a Lean proof. Both times are included in the table below however, the "solver
+to produce a Lean proof. Both times are included in the table below however, the ``solver
 time" is the time taken excluding the proof writing and checking time, and
-the "tactic time" is the total time taken to execute the tactic. For the superposition
+the ``tactic time" is the total time taken to execute the tactic. For the superposition
 provers, the time taken for the \lstinline{super} tactic to prove a problem is best compared
 with the tactic execution time of the two methods described in this paper, whilst
-the time taken by SPASS is best compared with the "solver" time for the two methods described in
+the time taken by SPASS is best compared with the ``solver" time for the two methods described in
 this paper.
 
 For both methods we include the length of the solution found. For Magnus'
@@ -2087,8 +2229,6 @@ search method and Magnus' method outperform \lstinline{super}.
 \section{To Do}
 \begin{itemize}
   \item Mention crappy justification for termination of search.
-  \item Mention stuff about proof by computation, e.g. the idea of
-    proof by verified algorithm, pros, cons.
 \end{itemize}
 
 \bibliography{references}
