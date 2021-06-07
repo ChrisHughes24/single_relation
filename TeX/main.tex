@@ -56,7 +56,7 @@
 %%% PAGE DIMENSIONS
 \usepackage{geometry} % to change the page dimensions
 \geometry{a4paper} % or letterpaper (US) or a5paper or....
-\geometry{margin=1.05in} % for example, change the margins to 2 inches all round
+\geometry{margin=1in} % for example, change the margins to 2 inches all round
 % \geometry{landscape} % set up the page for landscape
 %   read geometry.pdf for detailed page layout information
 
@@ -147,6 +147,14 @@
 \maketitle
 CID 01360659 \newline
 Supervised by Kevin Buzzard
+\begin{abstract}
+  We describe an implementation of Magnus' Method for solving the word problem in one relator
+  groups. This algorithm is implemented in the proof assistant Lean, and it is used to
+  write a Lean tactic to produce verified proofs of equalities of group elements, given
+  a single equality as hypothesis. We also describe an alternative method for
+  proving equalities of elements of groups given more than one equality of group terms
+  as a hypothesis.
+\end{abstract}
 \pagebreak
 \tableofcontents
 \pagebreak
@@ -161,7 +169,7 @@ a free group, the ``relator", it will decide whether any other word is in the
 normal subgroup containing this word. This is equivalent to deciding first order
 formulas in the language of groups of the form $t_1 = t_2 \implies t_3 = t_4$,
 where the $t_i$ are all terms in the language of groups.
-I am not aware of any other implementation of this method on a computer.
+This is as far as I'm aware the only computer implementation of Magnus' Method.
 
 Section \ref{gsmethod} describes an alternative method for solving the word problem,
 which we call the ``Graph Search Method".
@@ -175,6 +183,8 @@ terminate when an equality does not follow from the hypotheses.
 Both methods are implemented as tactics in the Lean proof assistant, meaning that
 they will produce a formal proof of the result capable of being checked by the Lean
 proof assistant.
+
+The code described in
 
 \section{Introduction to Lean}
 
@@ -372,7 +382,7 @@ theorem thm (a b : ℤ) : a * (1 + b) - a = a * b :=
 \end{lstlisting}
 
 The proof of this theorem required explicitly invoking three elementary lemmas about commutative
-rings, the distibutivity law, \lstinline{mul_add}, the right multiplicative identity,
+rings, the distibutivity law, \lstinline{mul_add}, the right multiplicative identity, \newline
 \lstinline{mul_one}, and the lemma \lstinline{add_sub_cancel'},
 which says that for any $x$ and $y$, $x + y - x = y$.
 Proving more complicated equalities of ring expressions can often require a huge
@@ -844,7 +854,7 @@ First we can define a reduction map to eliminate pairs of the form
     (g_i, 1, s_i), (1, n_{i+1}, -s_i) \to
       (g_i, 1, -s_i), (1, n_{i+1} - 2, -s_i) &\text{if } n_{i+1} > 2 \\
     (g_i, n_i, s_i), (1, n_{i+1}, -s_i) \to
-    (g_i, n_i - 1, s_i), (g_i, 1, -s_i), (1, n_{i + 1} - 2, -s_i) &
+    (g_i, n_i - 1, s_i), (g_i, 1, -s_i), (1, n_{i + 1} - 2, -s_i) \\ \ \ \ \ \ \ \
       \text{if } n_i > 1, n_{i+1} > 2
     \end{cases}
   \end{equation}
@@ -949,8 +959,9 @@ The map AddSubscripts is only used during the algorithm on words $w$ when the su
 exponents of $t$ in $w$ is zero, meaning the result will always be of the form
 $(w', 0_{\mathbb{Z}})$.
 
-\begin{defn}[RemoveSubscripts]
-  RemoveSubscripts sends basis elements of $F(S\times \mathbb{Z})$,  $s_n \in S\times \mathbb{Z}$,
+\begin{defn}
+  RemoveSubscripts is a map $F(S \times \mathbb{Z})$ to $F(S)$,
+  that sends basis elements $s_n$ of $F(S\times \mathbb{Z})$,
   to $t^n s t^{-n}$.
 \end{defn}
 RemoveSubscripts is a group homomorphism and if $r$ is a word such that
@@ -1629,8 +1640,12 @@ is a pair to the left such that $\text{sgn}(n_{i-1}) \ne \text{sgn}(n_i)$,
 or there is a pair to the right such that $\text{sgn}(n_{i+1}) = \text{sgn}(n_i)$.
 
 
-Consider a word $W := w_0t^{n_1}w_1 \dots t^{n_{k-1}}w_{k-1}t^{n_k}w_k$, assuming
-$W$ is not of the form $wt^n$ with $w \in F(S')$ and the
+Consider a word $W$
+\begin{equation}
+  W := w_0t^{n_1}w_1 \dots t^{n_{k-1}}w_{k-1}t^{n_k}w_k
+\end{equation}
+
+Assume  $W$ is not of the form $wt^n$ with $w \in F(S')$ and the
 following two sets. By convention define $n_0$ to be zero.
 
 Define the following two sets $R^+$ and $R^-$.
@@ -2077,8 +2092,11 @@ $f(u) = w$ and $u$ is reduced, i.e. $s_i \ne s_{i+1}$ and $k_i \ne 0$ for all $i
 Note that $g'$ is not a homomorphism.
 
 We can then define a map $g$ from $G(S)$ to $U(S \cup \{t'\})$,
-Consider a word $w_1t'^{a_1}t^{b_1}w_2t'^{a_2}t^{b_2} \dots w_nt'^{a_n}t^{b_n}$, where
-$w_i \in F(S \backslash \{t\})$, and $(a_i, b_i) \ne (0, 0)$ for every $i$.
+Consider a word in $G(S)$
+  \begin{equation}
+    w_1t'^{a_1}t^{b_1}w_2t'^{a_2}t^{b_2} \dots w_nt'^{a_n}t^{b_n}
+  \end{equation}
+Here $w_i \in F(S \backslash \{t\})$, and $(a_i, b_i) \ne (0, 0)$ for every $i$.
 Then this word is mapped to $g'(w_1)(t', a_1)(t, b_1)g'(w_2)(t', a_2)(t, b_2) \dots
 g'(w_n)(t', a_n)(t, b_n)$ by $g$. Intuitively, the map $g$ sends a word to its
 representation in reduced form.
