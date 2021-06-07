@@ -116,18 +116,14 @@
 \usepackage{upgreek}
 \usepackage{tikz-cd}
 \theoremstyle{definition}
-\newtheorem{theorem}{Theorem}[section]
+\newtheorem{thm}{Theorem}[subsubsection]
 \theoremstyle{definition}
-\newtheorem{corol}{Corollary}[theorem]
+\newtheorem{corol}[thm]{Corollary}
 \theoremstyle{definition}
-\newtheorem{lemma}{Lemma}[theorem]
+\newtheorem{lemma}[thm]{Lemma}
 \theoremstyle{definition}
-\newtheorem{sublemma}{Lemma}[theorem]
-\theoremstyle{definition}
-\newtheorem{defn}[theorem]{Definition}
-\theoremstyle{definition}
-\newtheorem{subdef}{Definition}[theorem]
-\newtheorem{exmpl}{Example}[theorem]
+\newtheorem{defn}[thm]{Definition}
+\newtheorem{exmpl}[thm]{Example}
 \usepackage{lscape}
 \usepackage{hyperref}
 \usepackage{titlesec}
@@ -160,7 +156,7 @@ Supervised by Kevin Buzzard
 This paper describes two methods for automating proofs of equalities in groups, given
 a number of equalities as hypotheses. Section \ref{magnusmethod} describes Magnus' method
 \cite{mccool_schupp_1973}, which decides the word problem in one-relator groups.
-This method was first described by Wilhelm Magnus in 1932 (proper citation). Given a word in
+This method was first described by Wilhelm Magnus in 1932 \cite{magnus1932}. Given a word in
 a free group, the ``relator", it will decide whether any other word is in the
 normal subgroup containing this word. This is equivalent to deciding first order
 formulas in the language of groups of the form $t_1 = t_2 \implies t_3 = t_4$,
@@ -182,7 +178,7 @@ proof assistant.
 
 \section{Introduction to Lean}
 
-Lean \cite{de_moura_kong_avigad_van_doorn_von_raumer_2018} is a proof assistant;
+Lean \cite{MR3446905} is a proof assistant;
 it is a language capable of expressing mathematical propositions
 and definitions, and also a language for writing formal proofs of these propositions.
 A formal proof in Lean is checked for correctness by Lean's kernel.
@@ -205,7 +201,7 @@ In Lean, the syntax \lstinline{x : ℝ} indicates that \lstinline{x} has type \l
 the element \lstinline{x} is a real number.
 Lean is based on type theory as opposed to set theory, so whilst on paper it might
 be more common to write $x \in \mathbb{R}$, saying $x$ is an element of the set of real numbers, in Lean
-you would usually write \lstinline{x : ℝ} in Lean instead.
+you would usually write \lstinline{x : ℝ} instead.
 So for any syntactically correct expression we write down in Lean, that term has a type,
 and we use the colon \lstinline{:} to indicate the type of a term.
 \lstinline{Type} itself is also a type, so for example the real numbers are a type,
@@ -225,7 +221,8 @@ in more conventional notation.
 To define a binary function from a type \lstinline{X} to itself in Lean,
 it is possible to give it the type \lstinline{X × X → X}. However, this is not
 the most common way of defining binary functions, it is more common to use the
-canonically isomorphic type \lstinline{X → (X → X)}.
+canonically isomorphic type \lstinline{X → (X → X)}, the type of functions
+from \lstinline{X} that return a function \lstinline{X → X}.
 This is called the curried form of the function. This type is usually written without
 brackets as \lstinline{X → X → X}, and this will be parsed by Lean as the type
 \lstinline{X → (X → X)}, brackets are automatically inserted to the right.
@@ -272,7 +269,7 @@ and a proof of \lstinline{p ∧ q}, and returns a proof of \lstinline{q ∧ p}. 
 is a term, which means it has a type, and the type of the proof is the statement of the proposition.
 
 Now consider the following definition of the function
-\lstinline{X × Y → Y × X} that swap the two elements. We want to define a function
+\lstinline{X × Y → Y × X} that swaps the two elements. We want to define a function
 that works for any two types \lstinline{X} and \lstinline{Y}, not just defining it for
 a particular choice of types \lstinline{X} and \lstinline{Y}. Therefore, the
 function should take a pair of types as an input as well. The full type of this function
@@ -481,7 +478,7 @@ to \lstinline{1} and the new goal after this line will be
 \lstinline{pow_zero} is the theorem that says if $a$ is an
 element of any monoid, then $a^0= 1$.
 
-To solve the first goal the \lstinline{simp} tactic can be used.
+To solve the first goal the \lstinline{simp} tactic could alternatively be used.
 The \lstinline{simp} tactic applies as many simplification rules as possible.
 These rules are lemmas in the library marked by the library authors as simplification
 lemmas that are proofs of an equality where the right hand side is judged to be simpler
@@ -504,7 +501,7 @@ compute the relator and the target word based on the tactic state; it must conve
 expression representing an element of a efficient representation of the free group. This process is very similar
 for both tactics described in this paper and is described in Section \ref{tacdescript}. Then
 the problem is solved using an efficient representation of the free group, and a proof certificate
-is computed. We call the function that performs this part $\textit{Solve}$.
+is computed. We call the function that performs this part \lstinline{solve}.
  The proof certificate is not a Lean proof, but does contain enough information
 about the solution to be able to be used to compute a formal Lean proof. This certificate is
 described in Section \ref{proofcert}.
@@ -540,15 +537,16 @@ the exponent part of every pair. The identity is given by the empty list.
   because it is conjugate to $b$ which is a shorter word.
 \end{defn}
 
-We state the following theorem \textit{Freiheitsatz}. This theorem is an important
-part of the correctness of Magnus' method. The proof is omitted.
+We state the following theorem \textit{Freiheitsatz}. This theorem
+is necessary to prove the completeness of Magnus' Method, although no formal
+proof need be written in Lean to implement the tactic. A proof
+is given as Theorem 1 of \cite{mccool_schupp_1973}.
 
-\begin{theorem}[Freiheitsatz]\label{freiheitsatz}
+\begin{thm}[Freiheitsatz]\label{freiheitsatz}
   Suppose $F(S)$ is the free group over a set $S$ and $r$ is a a cyclically reduced
   word, and $T \subset S$ is a set of letters such that $r$ cannot be written
   using only letters in $T$. Then $T$ is a basis for a free subgroup of $F(S)$.
-  \cite{mccool_schupp_1973}
-\end{theorem}
+\end{thm}
 
 \subsection{HNN Extensions}\label{HNN}
 
@@ -564,7 +562,6 @@ an isomorphism between two subgroups.
   by the normal closure of the set $\{ta t^{-1} \phi(a)^{-1} \ \mid \ a \in A\}$
 \end{defn}
 
-The map from $G$ into the HNN extension is injective. TO DO citation.
 If $w \in G \ast \langle t \rangle$, we use the notation $\overline{w}$ to
 for the element of the HNN extension that $w$ maps to.
 
@@ -580,23 +577,24 @@ equal as elements of $G \ast \langle t \rangle$. However, if $w \in G \ast \lang
 maps to $1$ in the HNN extension
 then the following lemma tells us that the unique HNN normal form for $\overline{w}$ is $1$.
 
-\begin{theorem}[Britton's Lemma]\label{britton}
+\begin{thm}[Britton's Lemma]\label{britton}
   Let $w \in G \ast \langle t \rangle$.
-  If $w$ is in HNN normal form and $w$ contains a $t$, then
-  $\overline{w} \ne 1$.
-  \cite{CharlesF.Miller1968OBTA}
-\end{theorem}
+  If $w$ is in HNN normal form and $w \ne 1$, then
+  $\overline{w} \ne 1$. A proof is given at Theorem 4.6 of \cite{infinitegroups}
+\end{thm}
+
+A consequence of Britton's Lemma is that the map from $G$ into the HNN extension
+is injective.
 
 \begin{corol}\label{genbritton}
-  If a word $w \in G \ast \langle t \rangle$ meets the conditions of Britton's Lemma,
-  then $\overline{w}$ cannot be written as a $t$ free word.
+  If a word $w \in G \ast \langle t \rangle$ is in HNN normal form and
+  contains a $t$, then $\overline{w}$ cannot be written as a $t$ free word.
   In other words if $v \in G \ast \langle t \rangle$ is such that
   $\overline{v} = \overline{w}$ then $v \notin G$.
 \end{corol}
 \begin{proof}
 Suppose $\overline{w} = \overline{g}$ with $g \in G$;
-then $g^{-1}w$ also meets the conditions
-in Theorem \ref{britton}, and therefore
+then $g^{-1}w \ne 1$ so by Theorem \ref{britton}
 $\overline{gw^{-1}} \ne 1$, contradicting $\overline{w} = \overline{g}$.
 \end{proof}
 Given a word $w \in G \ast \langle t \rangle$, the HNN normalization process
@@ -616,8 +614,10 @@ for checking whether an element of $G$ is in either of the subgroups $A$ or $B$,
 
 \subsection{The Proof Certificate}\label{proofcert}
 
-If $w, v, r \in F(S)$, then the tactic writes a Lean proof of the equality
-$\overline{w} = \overline{v}$ of elements in $F(S) / r$. The Lean proof is typically
+If $w, v, r \in F(S)$, then the tactic described in this paper aims to write a
+Lean proof of the equality
+$\overline{w} = \overline{v}$ of elements in $F(S) / r$ whenever the equality is true.
+The Lean proof is typically
 a very complicated object, so the tactic first produces a simpler proof certificate which
 contains enough information about why the elements $\overline{w}$ and $\overline{v}$ are equal
 from which a formal Lean proof can be computed. This section describes that proof certificate,
@@ -627,7 +627,7 @@ An element of a group $G$ is equal to $1$ in the quotient by the normal closure
 of a relator $r \in G$ if and only if it can be written as a product of conjugates of
 $r$ and $r^{-1}$.
 More precisely, there is a group homomorphism $\textit{Eval}_r : F(G) \to G$ from the free group
-over $G$ into $G$ that sends a basis element of $F(G)$,
+over $G$ into $G$ that sends basis elements of $F(G)$,
 $g \in G$ to $grg^{-1} \in G$. The image of this map is exactly the kernel of the quotient map.
 Therefore an element $p$ of $F(G)$ such that $\text{Eval}_r(p) = w$
 can be seen as a witness that $w$ is in the kernel of the quotient map.
@@ -638,12 +638,14 @@ generates an element $p$ of $F(F(S))$ such that $\text{Eval}_r(p) = w$, which wi
 a formal Lean proof that $\overline{w} = 1$.
 
 \begin{defn}(Eval)\label{Eval}
-  $\text{Eval}_r$ is a map $F(G) \to G$, sending a basis element $g \in G$ to $grg^{-1}$.
+  $\text{Eval}_r$ is a map $F(G) \to G$, sending basis elements $g \in G$ to $grg^{-1}$.
 \end{defn}
 
-If $w, v, r \in G$, then the certificate that $\overline{w} = \overline{v}$ in $G / r$,
-is the pair of an element
-$p \in F(G)$ such that $w = \text{Eval}_r(p) w$, and the element $v \in F(S)$.
+If $w, v, r \in G$, then the certificate that
+$\overline{w} = \overline{v}$ in $G / r$ is the pair of $(p, v)$ an element
+$p \in F(G)$ such that $w = \text{Eval}_r(p) w$ and the element $v \in G$.
+We store $v$ as part of the data of the certificate so that the
+data of both $v$ and $w$ can be recovered from the certificate.
 We call this set of pairs $P(G)$, and we now define
 a group structure on this set of pairs.
 
@@ -660,7 +662,7 @@ a group structure on this set of pairs.
 We define the group $P(G)$ for an arbitrary group $G$, however in practice we only
 ever use $P(G)$ when $G$ is a free group.
 
-\begin{subdef}[lhs and rhs]
+\begin{defn}[lhs and rhs]
 Define two group homomorphisms from $P$ into $G$: let
 $\text{rhs}$ be the obvious map sending $(a, b)$ to $b$.
 For an element $r \in G$, let $\text{lhs}_r$ be the map sending
@@ -669,7 +671,7 @@ Since $\text{Eval}_r(a)$ is in the kernel of the quotient map,
 for any $p\in P(G)$, $\text{lhs}_r(p)$ and $\text{rhs}(p)$ are equal in the quotient by $r$.
 Therefore an element $p$ of $P(G)$ can be regarded as a certificate of the congruence
 $\text{lhs}_r(p) \equiv \text{rhs}(p) \text{ mod } r$.
-\end{subdef}
+\end{defn}
 
 One way of expressing this is that the group $G / r$ is the coequalizer of
 the two surjective maps lhs and rhs.
@@ -684,31 +686,31 @@ of the congruence $a \equiv b \text{ mod } r$ and $q$ is a certificate of the co
 $c \equiv d \text{ mod } r$, then $pq$ is a certificate of the congruence $ac \equiv bd \text{ mod } r$.
 Similarly, $p^{-1}$ is a certificate of the congruence $a^{-1} \equiv b^{-1} \text{ mod } r$.
 
-\begin{subdef}($P$ is functorial).
+\begin{defn}($P$ is functorial).
   Given a homomorphism $f: G \to H$,
   functoriality of the free group gives a natural map $F(f): F(G) \to F(H)$.
   Define the map $P(f): P(G) \to P(H)$ to send $(p, b) \in P(G)$ to $(F(f)(p), f(b)) \in P(H)$.
   Given a certificate of the congruence $a \equiv b \text{ mod } r$, this map returns
   a certificate of the congruence $f(a) \equiv f(b) \text{ mod } f(r)$.
-\end{subdef}
+\end{defn}
 
-\begin{subdef}(Trans)
+\begin{defn}(Trans)
   Given $p,q \in P(G)$ such that $p$ is a certificate of the congruence $a \equiv b \text{ mod } r$
   and $q$ is a certificate of the congruence $b \equiv c \text{ mod } r$. We can define
   $\text{Trans}(p,q)$ such that $\text{Trans}(p,q)$ is a certificate of the congruence
   $a = c \text{ mod } r$.
   If $p = (p_1, p_2)$ and $q = (q_1, q_2)$, then we define $\text{Trans}(p,q) := (p_1q_1, q_2)$.
-\end{subdef}
+\end{defn}
 
-\begin{subdef}(Refl)
+\begin{defn}(Refl)
   Given $a \in G$, $(1, a)$ is a certificate of the congruence $a = a \text{ mod } r$. Call
   this $\text{Refl}(a)$.
-\end{subdef}
+\end{defn}
 
 It is also possible to define $\textit{Symm}$ such that $\text{lhs}_r(\text{Symm}(p)) = \text{rhs}(p)$
 and vice versa, but this is not used in the algorithm.
 
-\begin{subdef}(ChangeRel)
+\begin{defn}(ChangeRel)
   Given a certificate $p \in P(G)$ of the congruence $a \equiv b \text{ mod } r$, it is possible
   to make a certificate of the congruence $a \equiv b \text{ mod } g r g^{-1}$ for any $g \in G$.
   For any $g \in G,$ recall that $\rho(g): F(G) \to F(G)$ is the map sending $h \in G$ to
@@ -723,7 +725,7 @@ and vice versa, but this is not used in the algorithm.
   \begin{equation}
     \text{rhs}(\text{ChangeRel}(p)) = \text{rhs}(p)
   \end{equation}
-\end{subdef}
+\end{defn}
 
 \subsubsection{Performance}
 
@@ -738,7 +740,7 @@ in this sentence begin with the word $u$, and it is often the case that in the s
 that come up in practice, many of their words start with the same letters.
 It is more efficient to only store the difference between adjacent letters, so the
 element $[w][v]$ would be represented as the sequence $w, w^{-1}v$, and
-the element $[uw][uv]$ would be represented as the sequence $uw, w^{-1}v^{-1}$.
+the element $[uw][uv]$ would be represented as the sequence $uw, w^{-1}v$.
 If $u$ is a long word, which it often is, then this representation will usually be shorter.
 The longer the word $w$ such that the algorithm is attempting
 to prove $\overline{w} = 1$, the longer a typical length of $u$ is, so in fact
@@ -772,7 +774,7 @@ define an element $f(g, n, b) \in P(F(S))$.
 \end{equation}
 
 To understand the map $f$ it is helpful to see what $\text{lhs}_r \circ f$ is for a given
-$r \in F(S)$. It is straightforward to verify that.
+$r \in F(S)$. It is straightforward to verify the following equations
 
 \begin{equation}
   \begin{cases}
@@ -891,7 +893,7 @@ define
   v(m) := \prod_{i=1}^k g_i \in F(S)
 \end{equation}
 
-For a pair of sequence $m$ and $l$ use the notation $m ++ l$ to append the sequences.
+For a pair of sequences $m$ and $l$ use the notation $m ++ l$ to append the sequences.
 Then the product of two sequences $m$ and $l$, $m \cdot l$ is defined to be
 \begin{equation}
   m \cdot l = \text{Reduce}(m ++ \rho(v(m))(l))
@@ -937,7 +939,7 @@ the element $(s, n)$ will be written as $s_n$.
 
 \begin{defn}[AddSubscripts]\label{AddSubscripts}
   There is a homomorphism $\text{AddSubscripts}(t)$ from $F(S)$ into $F(S \times \mathbb{Z})
-  \rtimes_{\text{ChangeSubscript}} \mathbb{Z}$ sending a basis element $s \in S$ to
+  \rtimes_{\text{ChangeSubscript}} \mathbb{Z}$ sending basis elements $s \in S$ to
   $s_0 \in F(S \times \mathbb{Z})$ when $s \ne t$ and sending $t$ to
   $(1, 1_\mathbb{Z}) \in F(S \times \mathbb{Z}) \rtimes \mathbb{Z}$. Loosely, this map
   replaces occurrences of $t^n s t^{-n}$ with $s_n$.
@@ -948,7 +950,7 @@ exponents of $t$ in $w$ is zero, meaning the result will always be of the form
 $(w', 0_{\mathbb{Z}})$.
 
 \begin{defn}[RemoveSubscripts]
-  RemoveSubscripts sends a basis element of $F(S\times \mathbb{Z})$,  $s_n \in S\times \mathbb{Z}$,
+  RemoveSubscripts sends basis elements of $F(S\times \mathbb{Z})$,  $s_n \in S\times \mathbb{Z}$,
   to $t^n s t^{-n}$.
 \end{defn}
 RemoveSubscripts is a group homomorphism and if $r$ is a word such that
@@ -968,7 +970,7 @@ $F(S) / r$.
 The algorithm decides whether an element $\overline{w} \in F(S) / r$ is in $\overline{F(T)}$,
 and if it is, returns an element $w' \in F(T)$ such that $\overline{w'} = \overline{w}$.
 
-We describe the implementation of a function Solve whose arguments are a word $w$
+We describe the implementation of a function \lstinline{solve} whose arguments are a word $w$
 in the free group $F(S)$, a relator $r \in F(S)$,
 and a subset $T$ of $S$. If there is a word $w' \in F(S)$
 such that $w' \in F(T)$ and $\overline{w} \in F(S) / r$ is
@@ -1006,15 +1008,15 @@ then check whether the resulting word in $F(T) \ast F(S \backslash T)$ is in $T$
 
 \subsubsection{Case 2: There is a letter in r that is not in T}\label{xandt}
 
-We proceed by induction on the length of the relation $r$.FC
+We proceed by induction on the length of the relation $r$.
 
-\textbf{Base Case}
+\textit{Base Case} \newline
 The base case is the case where the relation $r$ is of the form $a^n$ with
 $n \in \mathbb{Z}$, and $a$ a letter in $S$. It is straightforward to decide
 the word problem in this group, since $F(S) / a^n$ is isomorphic
 to the binary coproduct of $F(S \backslash \{a\})$ and $\mathbb{Z}/n\mathbb{Z}$.
 
-\textbf{Case 2a: Letter with exponent sum zero}\label{expsumzero}
+\paragraph{Case 2a: Letter in $r$ with exponent sum zero}\label{expsumzero}
 
 Let $t$ be a letter in $r$ such that the sum of the exponents of $t$
 in $r$ is zero.
@@ -1149,16 +1151,18 @@ If $t \notin T$,
 this amounts to checking that $n = 0$ and solving the word problem for
 $r'$ and the set $T' := \{s_0 \in S' | s \in T\}$.
 
-\textbf{Case 2.b: No letter in  with exponent sum zero}\label{noexpsumzero}
+\paragraph{Case 2b: No letter in $r$ with exponent sum zero}\label{noexpsumzero}
 
 If there is no letter $t$ in $r$ with exponent sum zero, then we reduce to the case
 that there is such a letter by appropriately choosing a change of variables. Choose $x$
 and $t$ to be letters in $r$ such that $x \ne t$ and such that if $t \notin T$ then $x \notin T$.
+We then apply a change of variables map $\psi$ which we will define, such that $\psi{r}$
+does contain a letter with exponent sum zero.
 Let $\alpha$ be the exponent sum
 of $t$ in $r$ and let $\beta$ be the exponent sum of $x$.
 Note that $\alpha$ and $\beta$ are non zero.
 
-Then define the map $\psi$ on $F(S)$ by defining it on a basis element $s \in S$.
+Then define the map $\psi$ on $F(S)$ by defining it on basis elements $s \in S$.
 
 \begin{equation}
   \psi(s) =
@@ -1169,7 +1173,7 @@ Then define the map $\psi$ on $F(S)$ by defining it on a basis element $s \in S$
   \end{cases}
 \end{equation}
 
-The map $\psi$ descends to a map $\overline{\psi}: F(S) / r \to F(s) / \psi(r)$. The map
+The map $\psi$ descends to a map $\overline{\psi}: F(S) / r \to F(S) / \psi(r)$. The map
 $\psi$ is equal to $\psi_1 \circ \psi_2$,
 where $\psi_2$ and $\psi_1$ are defined as follows:
 
@@ -1205,7 +1209,7 @@ $\overline{\psi(T)}$, one can first write it as a word in $w' \in F(T)$ if possi
 and then check if $w'$ is in $\psi(T)$.
 The exponent sum of $t$ in $\psi(r)$ is $0$, so the problem of checking
 if $\psi(w)$ can be written as a word in $F(T)$ can be solved using
-the method described in Section \ref{expsumzero} (Sort out this label).
+the method described in Section \ref{expsumzero}.
 
 If $t \in T$ then $\psi(T)$ is generated by
 $T' := T \backslash \{t\} \cup t^\beta$. By the Freiheitsatz, if $\psi(w)$ can be written
@@ -1254,7 +1258,7 @@ coproduct $F(S') \ast \langle t \rangle$, where $\langle t \rangle$ is an infini
 cyclic group generated by $t$.
 
 \begin{defn}\label{tocoprod}
-  Define a map on a basis element $s$ as follows
+  Define a map on basis elements $s$ as follows
   \begin{equation}
     \begin{cases}
       s_0 & \text{ if } s \ne t \\
@@ -1278,7 +1282,7 @@ $\overline{a} = \overline{w}$ replace $tw$ with $\text{ChangeSubscript}(1)(a)t$.
 For each occurrence of $t^{-1}w$ where there is an $b \in B$ such that
 $\overline{b} = \overline{w}$ replace $tw$ with $\text{ChangeSubscript}(-1)(b)t^{-1}$.
 
-We can use Solve to check whether there are such $a$ and $b$ with
+We can use lstinline{solve} to check whether there are such $a$ and $b$ with
 these properties.
 
 \subsubsection{Computing Proof Certificates}\label{HNNPC}
@@ -1329,7 +1333,7 @@ is equal to some normalized word.
 
 
 \begin{lemma}\label{conjPlemmarhs}
-  We now verify that $C$ has the property that for any $p \in P(F(S \times \mathbb{Z}))$,
+  The map $C$ has the property that for any $p \in P(F(S \times \mathbb{Z}))$,
   $k \in \mathbb{Z}$, it is true that
   $\text{rhs}(g(C(k, p))) = t^k\text{rhs}(g(p))t^{-k}$
 \end{lemma}
@@ -1464,7 +1468,7 @@ greater than $2^n$.
 \end{exmpl}
 
 Applying one rewrite rule first
-might mean that another rewrite is unnecessary, or a call to Solve is
+might mean that another rewrite is unnecessary, or a call to lstinline{solve} is
 given an easier problem.
 
 \begin{exmpl}\label{rtlbad}
@@ -1487,7 +1491,7 @@ There are other potential improvements that could be made but it is not clear
 what effect, positive or negative, they would have on performance. These are discussed
 in this section.
 
-\paragraph{Definition of the set S'}
+\paragraph{Definition of the set $S'$}
 
 A potential improvement is changing the definition of the set $S'$ in Section \ref{xandt},
 to make the set as small as possible.
@@ -1891,9 +1895,10 @@ that can be performed after this normalization of each letter.
 \end{defn}
 
 These heuristics were surprisingly effective at shortening the proof certificates.
-As an extreme example, if $r = aba^{-11}b^4$, and
-$w = a^{10}b^{-4}a^{11}b^{-1}ab a^{-11} b^5a^{-11}b a^{11}b^{-1}a^{-1}b^{-1}a^{-10}$,
-then the certificate produced by $\text{Solve}$ that $\overline{w} =1$
+As an extreme example, if $aba^{-11}b^4 =1$, and
+we want to prove that $w := a^{10}b^{-4}a^{11}b^{-1}ab a^{-11} b^5a^{-11}b a^{11}b^{-1}a^{-1}b^{-1}a^{-10}$
+is the identity,
+then the certificate produced by \lstinline{solve} that $\overline{w} =1$
  has length $72$ before shortening and length $4$ after shortening.
  This shortens the overall tactic execution from 54 seconds to around
  3 seconds, with only 120ms spent executing Golf.
@@ -2043,11 +2048,11 @@ of Lemma \ref{thetatt'}.
   $h(w)$, but with every occurrence of $t'$ replaced with $1$.
 \end{defn}
 
-\begin{theorem}\label{powproof}
+\begin{thm}\label{powproof}
   For any $p \in F(F(S))$ if $\text{Eval}_{\psi_2(r)}(p) = \psi_2(w)$,
   then $\text{Eval}_r(F(H)(p)) = w$. $F(H)$ is the map $H$ extended to a map
   $F(F(S)) \to F(F(S))$.
-\end{theorem}
+\end{thm}
 
 We make some definitions and prove some more lemmas before proving this theorem.
 Note that this theorem is enough to prove injectivity of $\psi_2$.
@@ -2062,7 +2067,7 @@ $(F(H)(p), b)$ will be a certificate of the congruence $a \equiv b \text{ mod } 
   This is the set of finite sequences of elements of $S \times \mathbb{Z}$ with monoid operation
   given by appending the sequences, and identity given by the empty sequence. We write
   the monoid operation multiplicatively.
-  There is also a homomorphism $f : U(S) \to F(S)$, sending a basis element $(s, k)$ to
+  There is also a homomorphism $f : U(S) \to F(S)$, sending basis elements $(s, k)$ to
   $s^k$.
 \end{defn}
 
@@ -2086,7 +2091,7 @@ representation in reduced form.
   form $\sum_{i \in Q_a} k_i$.
 \end{defn}
 
-\begin{sublemma}\label{powproof1}
+\begin{lemma}\label{powproof1}
   Consider $\prod_{i = 1}^a (s_i, k_i)$, as an element of the $U(S \cup \{t' \})$.
   with $s_i \in S \cup \{t'\}$ (Note that this is not necessarily a reduced
   word; $k_i$ may be zero and $s_i$ may be equal to $s_{i+1}$).
@@ -2097,7 +2102,7 @@ representation in reduced form.
   $k$ is a multiple of $\beta$. Then the reduced word
   $\prod_{i = 1}^a s_i^{k_i} \in F(S \cup \{t'\})$
   can be written without an occurrence of $t'$.
-\end{sublemma}
+\end{lemma}
 
 \textbf{Proof of Lemma \ref{powproof1}}
 $\prod_{i = 1}^a (s_i, k_i)$ can be written as a reduced word $w$ in the free group.
@@ -2143,7 +2148,7 @@ Applying $\psi_2$ to both sides gives
 $\psi_2(\text{Eval}_r(F(H)(p))) =
   \psi_2(\text{Eval}_r(F(h)(p))) =
   \theta(\text{Eval}_r(F(h)(p))) =
-  \text{Eval}(\psi_2(r))(p)$.
+  \text{Eval}_{\psi_2(r)}(p)$.
 
   This concludes the proof of Theorem \ref{powproof}, and therefore concludes the proof
   that $\psi_2$ is injective, as well as giving an algorithm, namely $P(H)$,
@@ -2153,12 +2158,12 @@ $\psi_2(\text{Eval}_r(F(H)(p))) =
 \section{Efficiency of the Algorithm}
 
   The worst case performance of this algorithm is worse than any finite tower of exponents
-  \cite{miasnikov2011word}. The more relevant question is what is the typical performance.
+  \cite{MYASNIKOV2011324}. The more relevant question is what is the typical performance.
 
   \begin{defn}[Area of a Relation]
   For a finitely presented group $G := \langle S | R\rangle$, if $w \in F(S)$ is equal
-  to $1$ in the quotient $G$, then we say it is a \textit{relation}.
-  The \textit{area of a relation} is the smallest $N$ such that $w$ can be written
+  to $1$ in the quotient $G$, then we say it is a relation.
+  The area of a relation is the smallest $N$ such that $w$ can be written
   in the form $\prod_{i=1}^N g_i r_i^{\epsilon_i} g_i^{-1}$, where $\epsilon_i = \pm 1$
   and $r_i \in R$ for all $i$.
   \end{defn}
@@ -2197,19 +2202,20 @@ $\psi_2(\text{Eval}_r(F(H)(p))) =
   In this section we present an alternative method to solve word problems in groups.
   This method searches for a sequences of rewrites to prove an equality. This search will
   usually not terminate if there is no such sequence of rewrites. I conjecture that it
-  will terminate whenever there is a such sequence of rewrites. It was inspired by an
-  online solver written Kyle Miller, with some modifications since that solver
+  will terminate whenever there is a such sequence of rewrites, but this
+  is not proven. It was inspired by an
+  online solver written by Kyle Miller \cite{kylemiller}, with some modifications since that solver
   would sometimes fail to prove true formulas.
 
-  This section describes a solver that attemps to prove a word in the free group
+  This section describes a solver that attempts to prove a word in the free group
   is in the normal closure of a finite set of relators. It then describes
-  a Lean tactic that makes use of this solver, but employs some methods
+  a Lean tactic that makes use of this solver, and also employs some methods
   to convert various Lean tactic states into a form that can be tackled by
   the solver.
 
   Just as was the case with the tactic for Magnus' Method, the tactic has two parts,
   a solver that determines whether a word is in the normal closure of a set of relators,
-  and uses a more efficient representation of elements of the free group, and keeps track
+  which uses a more efficient representation of elements of the free group, and keeps track
   of some sort of proof certificate, and a Lean tactic that translates a Lean tactic state
   into a problem about elements in the efficient representation of the free group, and
   writes a formal Lean proof of the result using the certificate.
@@ -2256,12 +2262,13 @@ from the problem, and the new problem is
   \end{equation}
 
   Given a starting word, the algorithm then generated all words that can be generated
-  from this starting word rewrites using the above rules and adds these
+  from this starting word using the above rewriting rules and adds these
   words to a set of leaves. The process is then repeated at the word in the set of
   leaves with the least cost. The cost function assigns a natural number to each word in
   the free group. In general, shorter words have a lower cost, but different cost functions
-  are discussed in section TODO. Before being added to the set of leaves, each word is cyclically
-  reduced as well, a word is replaced by the shortest of its conjugates.
+  are discussed in Section \ref{costfunction}. Before being added to the set of leaves,
+  each word is cyclically
+  reduced, i.e. a word is replaced by the shortest of its conjugates.
 
   As an example, we could apply the first rewriting rule $a = b^{-2}a^{-1}b^{-1}$
   to $aba^{-1}b^{-1}$ and obtain the word
@@ -2293,7 +2300,7 @@ if words were in $S$ at step 6, and the set $L$ would be much smaller. However, 
 found to be a lot slower, since so much time was spent checking whether words were in $S$.
 
 
-\subsection{Cost Function}
+\subsection{Cost Function}\label{costfunction}
 
 The method mentions a cost function which was not defined yet. Two cost functions
 were tested, one was simply the length of a word, the other effectively ordered words
@@ -2314,13 +2321,19 @@ length of the word as follows
 
 
 This cost function was found to have better performance than simply using the length of a word
-as the cost function. As an example consider the problem of proving that
+as the cost function. It effectively orders the words
+by length first, and then by a lexicographic ordering.
+It tends to group the same letters next to each other,
+which is a better strategy for abelian groups, or non abelian groups where a pair
+of letters commute.
+As an example consider the problem of proving that
 if $ab = ba$, then $a^5b^5=b^5a^5$. Using length as the cost function, the size
 of the search graph for this problem is 5906, but using the improved cost function,
 the search graph size contains 604 words. This method is obviously not the
 best method for problems in abelian groups like this, but the improved cost
 function should also speed up the search in problems where some, but not all
-of the variables commute.
+of the variables commute, or you have equations such as $ab=ba^{-1}$, where $a$
+and $b$ commute up to a sign change of the exponent of $a$.
 
 \subsection{Generating Proofs}
 In order to generate proof terms the algorithm must keep track of what path was taken
@@ -2353,7 +2366,8 @@ in the free group, it is true that if
 is in the normal closure of a set of relators, \begin{lstinline}!word₁ * word₂ = old_word!\end{lstinline},
 and \begin{lstinline}!rel!\end{lstinline} is
 one of the relators, then \begin{lstinline}!old_word!\end{lstinline} is also in the
-normal closure of the set of relators.
+normal closure of the set of relators. The theorem stating this fact was proved in Lean,
+and the Lean proof produced by the tactic was repeated applications of this lemma.
 
 Intuitively, we are splitting \begin{lstinline}!old_word!\end{lstinline} into two parts,
 \begin{lstinline}!word₁!\end{lstinline} and \begin{lstinline}!word₂!\end{lstinline},
@@ -2370,9 +2384,8 @@ is needed to convert them to a form that can be solved.
 As an example, consider the following proposition. If $a$ and $b$ are elements
 of a group, and $ab = b^2a$, then for any natural number $n$, $a^nba^{-n} = b^{2^n}$.
 The proof is by induction, and we consider the inductive step. The information
-visible to the user at the inductive step is as follows
-
-For the inductive step of this proof, we have the hypothesis that $ab = b^2a$,
+visible to the user at the inductive step is the follwing.
+We have the hypothesis that $ab = b^2a$,
 the induction hypothesis says that $a^nba^{-n} = b^{2^n}$,
 and we need to prove $a^{n+1}ba^{-(n+1)} = b^{2^{n+1}}$.
 
@@ -2381,7 +2394,8 @@ $a$, $a^n$, $b$ and $b^{2^n}$ and we add assumptions for commuting powers,
 because $a$ commutes with $a^n$, and $b$ commutes with $b^{2^n}$.
 
 We will introduce new variables $c := a^n$ and $d := b^{2^n}$. The problem
-then becomes the following
+then becomes the following, where the turnstile $\vdash$ indicates the
+equation to be proved, and everything prior to the turnstile is a hypothesis.
 
 \begin{equation}\label{problem}
   \begin{aligned}
@@ -2397,7 +2411,7 @@ We now descibe some of the process of converting the Lean tactic state into the
 problem above. The tactic has to effectively identify the atoms,
 \begin{lstinline} !a! \end{lstinline}, \begin{lstinline} !a ^ n! \end{lstinline},
 \begin{lstinline} !b! \end{lstinline}, and \begin{lstinline} !b ^ 2 ^ n! \end{lstinline}.
-
+The tactic state visible to the use at the inductive step is as follows.
 \begin{lstlisting}
   G : Type,
   _inst_1 : group G,
@@ -2411,8 +2425,9 @@ problem above. The tactic has to effectively identify the atoms,
 Note that \begin{lstinline} !n.succ! \end{lstinline} means $n + 1$, or the
 successor of $n$. Another thing to note is the coercion arrow
 \begin{lstinline} !↑! \end{lstinline}. This arrow represents the canonical map
-from the natural numbers to the integers - usually in maths, this is not explicitly
-written, but in Lean it must be used, and this provides a small challenge in
+from the natural numbers to the integers this is not usually explicitly
+written in maths on paper, but in Lean it must be used,
+and this provides a small challenge in
 identifying the atoms, care has to be taken to ensure that the tactic identifies
 that
 \begin{lstinline} !a ^ -↑n! \end{lstinline} is indeed the inverse of
@@ -2440,7 +2455,7 @@ of the rules used to normalize the goal.
   \item Normalize all numerals to the form
     $1 + 1 + 1 + \dots$
   \item Normalize all powers to use the integer power, not the natural power
-  \item Rewrite expression of the form $a ^ (m + n)$ to $a^m a^n$
+  \item Rewrite expression of the form $a ^ {m + n}$ to $a^m a^n$
   \item Apply the distributivity law within exponents, expand
     $a(b+c)$ to $ab + ac$.
 \end{itemize}
@@ -2528,6 +2543,13 @@ For the graph search method, this means the number of substitutions required
 in the proof.
 We also include the tree size for the graph search method, which is the
 size of the set $L$ at the end of the computation.
+
+The columns labelled Relators and Word indicate the problem to be solved.
+For each set of relators, labelled 1,2,3 etc. we get each algorithm to prove
+each of the words in the column to the left is in the normal closure of the
+set of relators in the box to the left of the ``Word''.
+
+
 \pagebreak
 \begin{landscape}
 % Please add the following required packages to your document preamble:
@@ -2541,7 +2563,7 @@ size of the set $L$ at the end of the computation.
   \endhead
   %
   \multirow{6}{*}{1} & \multirow{6}{*}{$abab$} & $babab^{-1}a^{-1}b^{-1}a^{-1}$ & 326ms & 1ms & 2 & 673ms & 1ms & 2 & 4 & 369ms & 20ms \\
-   &  & \$(baba)\textasciicircum{}4 & 337ms & 6ms & 4 & 782ms & 6ms & 4 & 4 & 683ms & 20ms \\
+   &  & $(baba)^4$ & 337ms & 6ms & 4 & 782ms & 6ms & 4 & 4 & 683ms & 20ms \\
    &  & $(b^{-1}a^{-1}b^{-1}a^{-1})^4$ & 514ms & 1ms & 4 & 594ms & 5ms & 4 & 4 & 1.29s & 20ms \\
    &  & $(baba)^{10}$ & 669ms & 2ms & 10 & 1.73s & 31ms & 10 & 10 & \textgreater{}600s & 20ms \\
    &  & $(baba)^{100}$ & 4.26s & 10ms & 100 & 66.2s & 1.54s & 100 & 100 &  & 30ms \\
@@ -2576,7 +2598,7 @@ size of the set $L$ at the end of the computation.
 
 For problems where the single relator is of the form $r^n$, where
 $r$ is a word in the free group, and $n > 1$, then both methods perform
-very well. There is a theorem (proper citation) that says that
+very well. Theorem 5 of \cite{PutmanOneRelator} says that
 these problems can be solved whilst only performing rewrites that
 make the word shorter. Neither method will perform a rewrite that
 makes the word longer on these problems, so both perform well. The table
@@ -2640,10 +2662,11 @@ The final four problems are all related to the group with presentation
 $\langle a, b \ : ab = b^2a\rangle$. Problem 11 is the inductive step
 of the proof that $a^nb = b^{2^n}a$ in this group. \lstinline{super} failed to prove this
 within ten minutes. The graph search method was able to eliminate the variable
-$b$, and this may have given it an advantage over \lstinline{super}. Therefore problem 12
-is the same problem, but with every occurence of $b$ replaced with $b^2$ and
+$b$, and this may have given it an advantage over \lstinline{super}.
+To test this hypothesis, problem 12 was defined as
+ the same problem, but with every occurence of $b$ replaced with $b^2$ and
 with every occurence of $d$ replace with $d^2$. It is of course still possible
-to eliminate $b$ or $d$, but the algorithm does not attempt this when every occurence
+to eliminate $b$ or $d$, but the algorithm does not attempt this when every occurence of $b$ or $d$
 is a square. The graph search method still performed well on this problem, and
 surprisingly this change meant that \lstinline{super} was naw able to solve the problem, albeit
 very slowly. I also tried making it easier for \lstinline{super}, by eliminating $b$ before giving the problem
@@ -2659,15 +2682,10 @@ carefully constructed to exploit the weaknesses, and these weaknesses could be f
 by implementing the optimizations in Section \ref{HNNperf}. Magnus' method even
 outperforms SPASS on one problem, so there is weak evidence to suggest this method
 is overall faster than a superposition prover, especially considering that SPASS
-has had far more time invested in optimizing it than my implementation of Magnus'
+has had far more time invested in optimization than my implementation of Magnus'
 Method. However it is difficult to draw any firm conclusions because of the drastic variation
 in performance depending on the problem given. Both the graph
 search method and Magnus' method outperform \lstinline{super}.
-
-\section{To Do}
-\begin{itemize}
-  \item Mention crappy justification for termination of search.
-\end{itemize}
 
 \bibliography{references}
 
