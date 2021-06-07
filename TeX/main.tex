@@ -1276,7 +1276,7 @@ For each occurrence of $tw$ where there is an $a \in A$ such that
 $\overline{a} = \overline{w}$ replace $tw$ with $\text{ChangeSubscript}(1)(a)t$.
 
 For each occurrence of $t^{-1}w$ where there is an $b \in B$ such that
-$\overline{b} = \overline{w}$ replace $tw$ with $text{ChangeSubscript}(-1)(b)t^{-1}$.
+$\overline{b} = \overline{w}$ replace $tw$ with $\text{ChangeSubscript}(-1)(b)t^{-1}$.
 
 We can use Solve to check whether there are such $a$ and $b$ with
 these properties.
@@ -1951,7 +1951,7 @@ $\overline{\psi_2}$ is an injective map.
 Since $\overline{\psi_2}$ is injective, if $p \in P(F(S))$ is a witness of the congruence
 $\psi_2(a) \equiv \psi_2(b) \text{ mod } \psi_2(r)$, where $a, b, r \in F(S)$,
 then there must exist a certificate
-$q$ of the congruence $a = b \text{ mod }r$. The question is how to compute this. The proof
+$q$ of the congruence $a \equiv b \text{ mod }r$. The question is how to compute this. The proof
 of this congruence given in \cite{PutmanOneRelator}
 relies on the fact that the canonical maps into an amalgamated product
 of groups are injective. However the standard proof
@@ -1969,8 +1969,11 @@ the map $\psi_2 : F(S) \to F(S)$, is defined as follows on a letter $s \in S$.
   \end{cases}
 \end{equation}
 
+This descends to a map $\overline{\psi_2}$ between $F(S) / r$
+and $F(S) / \psi_2(r)$.
+
 Suppose $p \in P(F(S))$ is a witness of the congruence
-$\psi_2(a) = \psi_2(b) \text{ mod } \psi_2(r)$. It is not necessarily the case that $k$
+$\psi_2(a) \equiv \psi_2(b) \text{ mod } \psi_2(r)$. It is not necessarily the case that $k$
 is a multiple of $\beta$ in every occurrence of $t^k$ in $p$. For example
 $p := ([t][t\psi_2(r)^{-1}t^{-1}][t]^{-1}, 1) \in P(F(S))$ is a witness of the congruence
 $\psi_2(r) \equiv 1 \text{ mod } \psi_2(r)$. Both $\text{lhs}_{\psi_2(r)}(p)$
@@ -1994,12 +1997,16 @@ true, so we define this algorithm.
   $t^n$, $t^na$ and $t^nat$.
 \end{defn}
 
+For the following section we need define a group by adjoining an element $t'$ that commutes
+with $t$ to the free group $F(S)$. This group $G(S)$ is $F(S \cup \{t'\}) / tt't^{-1}t'^{-1}$,
+or alternatively it could be expressed as $F(S \backslash \{t\}) \ast
+(\langle t' \rangle \times \langle t \rangle)$.
+
 \begin{defn}
-  $h$ is a map of sets (not a group homomorphism) $F(S) \to F(S \cup \{t'\})$,
-  where $t'$ is some letter not in $S$.
-  $h$ replaces every occurrence of $t^k$ with $t'^at^b$ in such a way that $a + \beta b = k$,
+  $h$ is a map of sets (not a group homomorphism) $F(S) \to G(S)$.
+  $h$ replaces every occurrence of $t^k$ with $t'^at^b$ in such a way that $a + \beta b = k$
   and every partial exponent sum of $t'$ in $h(w)$ is either not a multiple of $\beta$,
-  or it is zero.
+  or it is zero
 \end{defn}
 
 \begin{defn}
@@ -2016,6 +2023,21 @@ true, so we define this algorithm.
 $\theta$ and $h$ satisfy $\theta \circ h = \text{id}$. For any $w$ in $F(S)$,
 $\theta(w) = \psi_2(w)$.
 
+\begin{lemma}\label{thetatt'}
+  If $w \in G(S)$ is such that $\theta(w) \in \text{Im}(\psi_2)$,
+  then for every occurence of $t'^k$ in $w$, $k$ is a multiple of $\beta$
+\end{lemma}
+
+\textit{Proof.} We prove this by induction on the length of $w$. If $w=1$ the result is clear.
+If $w = sw'$ with $s \in S \backslash \{t\}$ and $w'$ shorter than $w$,
+then if $\theta(w) \in \text{Im}(\psi_2)$, then so is $\theta(w')$, so in every occurence
+of $t'^k$ in $w'$, $k$ is a multiple of $\beta$, and therefore the same is true of $w'$.
+If $w = t'^m t ^ n w'$, then with $w'$ shorter than $s$, and not starting with $t$ or $t'$,
+then $\theta(w) \in \text{Im}(\psi_2)$ if and only if $m$ is a multiple of $\beta$ and
+$\theta(w') \in \text{Im}(\psi_2)$. By the induction hypothesis, for every occurence of $t'^k$
+in $w'$, $k$ is a multiple of $\beta$, therefore the same is true of $w$, concluding the proof
+of Lemma \ref{thetatt'}.
+
 \begin{defn} \label{PowProof}
   $H$ is a map (not a group homomorphism) $F(S) \to F(S)$. $H(w)$ is defined to be
   $h(w)$, but with every occurrence of $t'$ replaced with $1$.
@@ -2027,23 +2049,41 @@ $\theta(w) = \psi_2(w)$.
   $F(F(S)) \to F(F(S))$.
 \end{theorem}
 
+We make some definitions and prove some more lemmas before proving this theorem.
+Note that this theorem is enough to prove injectivity of $\psi_2$.
+If $(p, \psi_2(b)) \in P(F(S))$ is a certificate of the congruence
+$\psi_2(a) \equiv \psi_2(b) \text{ mod }\psi_2(r)$, then
+$(F(H)(p), b)$ will be a certificate of the congruence $a \equiv b \text{ mod } r$.
+
 \begin{defn}
   For the rest of the section it is helpful to define the set of potentially unreduced
   words over a set $S$, which we call $U(S)$.
   We define it to be the free monoid over the set $S \times \mathbb{Z}$.
   This is the set of finite sequences of elements of $S \times \mathbb{Z}$ with monoid operation
   given by appending the sequences, and identity given by the empty sequence. We write
-  the monoid operation multiplicatively. There is a natural map $F(S) \to U(S)$,
-  sending an element to its reduced form. Note that this map is not a homomorphism.
-  There is also a homomorphism $U(S) \to F(S)$, sending a basis element $(s, k)$ to
+  the monoid operation multiplicatively.
+  There is also a homomorphism $f : U(S) \to F(S)$, sending a basis element $(s, k)$ to
   $s^k$.
 \end{defn}
+
+There is a map $g'$ from $F(S)$ to $U(S \cup \{t'\})$, sending a word $w$ to the unique
+$u := (s_1, k_1), (s_2, k_2), (s_3, k_3) \dots (s_n, k_n) \in U(S)$, such that
+$f(u) = w$ and $u$ is reduced, i.e. $s_i \ne s_{i+1}$ and $k_i \ne 0$ for all $i$.
+Note that $g'$ is not a homomorphism.
+
+We can then define a map $g$ from $G(S)$ to $U(S \cup \{t'\})$,
+Consider a word $w_1t'^{a_1}t^{b_1}w_2t'^{a_2}t^{b_2} \dots w_nt'^{a_n}t^{b_n}$, where
+$w_i \in F(S \backslash \{t\})$, and $(a_i, b_i) \ne (0, 0)$ for every $i$.
+Then this word is mapped to $g'(w_1)(t', a_1)(t, b_1)g'(w_2)(t', a_2)(t, b_2) \dots
+g'(w_n)(t', a_n)(t, b_n)$ by $g$. Intuitively, the map $g$ sends a word to its
+representation in reduced form.
 
 \begin{defn}
   For an element $u := (s_1, k_1), (s_2, k_2), (s_3, k_3) \dots (s_n, k_n) \in U(S \cup \{t'\})$,
   and for any $a \le n$
-  consider the set $Q_a := \{ i \ \mid \ i \le a \text{ and } s_i = t' \}$
-  be the set of integers of the form $\sum_{i \in Q_a} k_i$.
+  consider the set $Q_a := \{ i \ \mid \ i \le a \text{ and } s_i = t' \}$.
+  The the set of partial exponent sums of $t'$ in $u$ is the set of integers of the
+  form $\sum_{i \in Q_a} k_i$.
 \end{defn}
 
 \begin{sublemma}\label{powproof1}
@@ -2059,7 +2099,7 @@ $\theta(w) = \psi_2(w)$.
   can be written without an occurrence of $t'$.
 \end{sublemma}
 
-\textbf{Proof of Lemma \ref{powproof1}.}
+\textbf{Proof of Lemma \ref{powproof1}}
 $\prod_{i = 1}^a (s_i, k_i)$ can be written as a reduced word $w$ in the free group.
 The set of partial exponent sums of $t'$ in $w$
 is a subset of the set of partial exponent sums of $t'$ in $\prod_{i = 1}^a (s_i, k_i)$,
@@ -2069,39 +2109,46 @@ However, by assumption every occurrence $t'^k$ in $w$, $k$,
 is a multiple of $\beta$, so every partial exponent sum of $t'$ in $w$ is $0$.
 So $w$ does not contain $t'$, and $w \in F(S)$.
 
-
-
 \textbf{Proof of Theorem \ref{powproof}} \newline
-First we show that for any $p \in F(F(S))$,
-if $\text{Eval}_{\psi_2(r)}(p)$ is in the image of $\psi_2$, then
-$\text{Eval}_{\psi_2(r)}(F(h)(p))$ has the property
-that for every occurrence of $t'^k$, $k$ is a multiple of $\beta$.
-
-
-
-
-
+If $\text{Eval}_{\psi_2(r)}(p)$ is in the image of $\psi_2$, then
+$\text{Eval}_{r}(F(h)(p))$ has the property
+that for every occurrence of $t'^k$, $k$ is a multiple of $\beta$,
+this is true because $\theta(\text{Eval}_{r}(F(h)(p))) =
+\text{Eval}_{\psi_2(r)}(p)$, and therefore by Lemma \ref{thetatt'},
+for every occurence of $t'^k$ in $\text{Eval}_{r}(F(h)(p))$, $k$
+is a multiple of $\beta$.
 
 If $p' := F(h)(p)$,
-then $\text{Eval}(r)(p')$ can be written as a product of the form in
+then we now show $\text{Eval}_{r}(p')$ can be written as an element of $U(S \cup \{t'\})$ of the form in
 Lemma \ref{powproof1}.
-If $r' = \prod_i u_i^{l_i}$, then to write $\text{Eval}(\psi_2(r))(p')$ in this
-form, send $\prod_i \left[\prod_{j = 1}^a s_{ij}^{k_j}\right]
-\in P(F(S \cup \{t'\}))$, to
+To write $\text{Eval}_{r}(p')$ in this
+form, if $p' = \prod_i \left[w_i\right]^{n_i} \in F(G(S))$, then send it to
 \begin{equation} \label{eq:bigprod}
-  \prod_i \left(\left(\prod_{j = 1}^a {s_{ij}}^{k_j}\right) \left(\prod_j u_j^{l_j}\right)
-  \left(\prod_{j = 1}^a {s_{i(a - j)}}^{-k_{a - j}}\right)\right)
+  \prod_i g(w_i)g(r^{n_i})g(w_i^{-1})
 \end{equation}
-If all the nested products in Equation \ref{eq:bigprod} are appended into one long product,
-then the product has the form in Lemma \ref{powproof1}. Therefore when the word is reduced
+Every $g(w_i)$ has the property that for every partial exponent sum of $t'$, either
+the sum is zero or not a multiple of $\beta$, since all the $w_i$ are in the image of $h$.
+
+The partial exponent sums of $t'$ in $g(w_i)g(r^{n_i})g(w_i^{-1})$ are just
+the sequence of partial exponents sums in $g(w_i)$ followed by the same sequence in reverse
+order, since there is no $t'$ in $r$. The overall exponent sum
+of $t'$ in $g(w_i)g(r^{n_i})g(w_i^{-1})$ is zero, therefore the product
+$\prod_i g(w_i)g(r^{n_i})g(w_i^{-1})$ also has the property in Lemma \ref{powproof1}.
+
+Therefore when the word is reduced, i.e. the map $f$ is applied,
 it will not contain $t'$ by Lemma \ref{powproof1}. This means that deleting all occurrences of
-$t'$ will in $p'$ will not change $\text{Eval}(r)(p')$, and therefore
-$\text{Eval}(r)(F(\text{PowProof})(p)) = \text{Eval}(r)(F(h)(p))$.
+$t'$ will in $p'$ will not change $\text{Eval}_r(p')$, and therefore
+$\text{Eval}_r(F(H)(p)) = \text{Eval}_r(F(h)(p))$.
 Applying $\psi_2$ to both sides gives
-$\psi_2(\text{Eval}(r)(F(\text{PowProof})(p)) =
-  \psi_2(\text{Eval}(r)(F(h)(p))) =
-  \theta(\text{Eval}(r)(F(h)(p))) =
+$\psi_2(\text{Eval}_r(F(H)(p))) =
+  \psi_2(\text{Eval}_r(F(h)(p))) =
+  \theta(\text{Eval}_r(F(h)(p))) =
   \text{Eval}(\psi_2(r))(p)$.
+
+  This concludes the proof of Theorem \ref{powproof}, and therefore concludes the proof
+  that $\psi_2$ is injective, as well as giving an algorithm, namely $P(H)$,
+  to compute a certificate of a congruence $a \equiv b \text{ mod } r$,
+  given a certificate of a congruence  $\psi_2(a) \equiv \psi_2(b) \text{ mod } \psi_2(r)$,
 
 \section{Efficiency of the Algorithm}
 
