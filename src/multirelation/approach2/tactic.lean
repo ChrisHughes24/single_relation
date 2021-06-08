@@ -588,5 +588,3 @@ hyps' : list expr ← hyps.mmap i_to_expr,
 group_rel_m.run transparency.semireducible G (group_rel_m.group_rel sl hyps' lhs rhs)
 
 end tactic.interactive
-
-set_option profiler true

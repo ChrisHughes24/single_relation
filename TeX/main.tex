@@ -151,7 +151,8 @@ Supervised by Kevin Buzzard
   We describe an implementation of Magnus' Method for solving the word problem in one relator
   groups. This algorithm is implemented in the proof assistant Lean, and it is used to
   write a Lean tactic to produce verified proofs of equalities of group elements, given
-  a single equality as hypothesis. We also describe an alternative method for
+  a single equality as hypothesis. This is the first implementation of Magnus' Method
+  on a computer. We also describe an alternative method for
   proving equalities of elements of groups given more than one equality of group terms
   as a hypothesis.
 \end{abstract}
@@ -183,8 +184,6 @@ terminate when an equality does not follow from the hypotheses.
 Both methods are implemented as tactics in the Lean proof assistant, meaning that
 they will produce a formal proof of the result capable of being checked by the Lean
 proof assistant.
-
-The code described in
 
 \section{Introduction to Lean}
 
@@ -256,7 +255,7 @@ which corresponds to the function $x \mapsto x + 1$. To define a function
 in multiple variables, you can put two variables after the lambda, for example
 \lstinline{λ x y : ℝ, x + y} defines a binary function with type \lstinline{ℝ → ℝ → ℝ}.
 
-\subsubsection{Propositions as Types}
+\subsection{Propositions as Types}
 
 We now give some examples of propositions and theorems.
 
@@ -2173,7 +2172,7 @@ $\psi_2(\text{Eval}_r(F(H)(p))) =
   to compute a certificate of a congruence $a \equiv b \text{ mod } r$,
   given a certificate of a congruence  $\psi_2(a) \equiv \psi_2(b) \text{ mod } \psi_2(r)$,
 
-\section{Efficiency of the Algorithm}
+\subsection{Efficiency of the Algorithm}
 
   The worst case performance of this algorithm is worse than any finite tower of exponents
   \cite{MYASNIKOV2011324}. The more relevant question is what is the typical performance.
@@ -2393,7 +2392,7 @@ inserting some conjugate of \begin{lstinline}!rel!\end{lstinline} in between
 \begin{lstinline}!word₁!\end{lstinline} and \begin{lstinline}!word₂!\end{lstinline},
 and then conjugating the result as well.
 
-\section{The Tactic}\label{tacdescript}
+\subsection{The Tactic}\label{tacdescript}
 
 The practical problems that might come up in Lean proofs sometimes are not already in
 exactly the form that can be solved by the algorithm described, and some work
